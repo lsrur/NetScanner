@@ -4,54 +4,37 @@ import SwiftUI
 @MainActor
 @Observable
 final class WhoisModel {
-    var query = ""
-
     private(set) var answers: [(server: String, text: String)] = []
     private(set) var isRunning = false
     private(set) var message: String?
-    private var task: Task<Void, Never>?
-    private var runID = 0
 
-    func start() {
-        let query = query.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return }
-        task?.cancel()
-        runID += 1
-        answers = []
-        message = nil
+    /// Queries whois for `query` (a domain or public address) and returns when done.
+    func lookup(_ query: String) async {
+        clear()
         if let address = IPv4Address(query), Whois.isPrivate(address) {
             message = "\(query) is a private address; public whois has no data for it."
-            isRunning = false
             return
         }
         isRunning = true
-        let runID = runID
-        task = Task {
-            let answers = await Whois.lookup(query)
-            guard self.runID == runID else { return }
-            self.answers = answers
-            if answers.isEmpty { message = "No whois server answered." }
-            isRunning = false
-        }
+        let answers = await Whois.lookup(query)
+        isRunning = false
+        guard !Task.isCancelled else { return }
+        self.answers = answers
+        if answers.isEmpty { message = "No whois server answered." }
+    }
+
+    func clear() {
+        answers = []
+        message = nil
     }
 }
 
-struct WhoisPanel: View {
-    @Bindable var model: WhoisModel
+/// The Whois tab of the Network Tools window.
+struct WhoisResultsView: View {
+    let model: WhoisModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            TextField("Domain or public IP", text: $model.query, prompt: Text(verbatim: "example.com"))
-                .textFieldStyle(.roundedBorder)
-                .onSubmit(model.start)
-            Button(action: model.start) {
-                Label("Whois", systemImage: "magnifyingglass")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .keyboardShortcut(.return, modifiers: .command)
-            .disabled(model.isRunning || model.query.trimmingCharacters(in: .whitespaces).isEmpty)
-
+        VStack(alignment: .leading, spacing: 8) {
             if model.isRunning {
                 ProgressView()
                     .controlSize(.small)
@@ -74,9 +57,21 @@ struct WhoisPanel: View {
                     }
                 }
                 .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(.background, in: .rect(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(.separator))
         }
     }
 }
+
+#if DEBUG
+extension WhoisModel {
+    /// Finished results, for screenshots.
+    func loadDemo(answers: [(server: String, text: String)]) {
+        isRunning = false
+        message = nil
+        self.answers = answers
+    }
+}
+#endif

@@ -27,26 +27,20 @@ final class TraceSession {
     private(set) var isRunning = false
     private(set) var reachedDestination = false
     private(set) var errorMessage: String?
-    private var task: Task<Void, Never>?
-    private var runID = 0
 
-    func start() {
-        let host = host.trimmingCharacters(in: .whitespaces)
-        guard !host.isEmpty else { return }
-        task?.cancel()
+    /// Traces `host` and returns when the destination answers, the hops run out or the
+    /// calling task is cancelled.
+    func trace(_ host: String) async {
         reset()
+        self.host = host
         isRunning = true
-        runID += 1
-        let runID = runID
-        task = Task {
-            await run(host: host)
-            if self.runID == runID { isRunning = false }
-        }
+        await run(host: host)
+        isRunning = false
     }
 
-    func stop() {
-        task?.cancel()
-        isRunning = false
+    func clear() {
+        host = ""
+        reset()
     }
 
     private func reset() {
@@ -124,7 +118,6 @@ final class TraceSession {
 extension TraceSession {
     /// A finished trace, for screenshots.
     func loadDemo(host: String, destination: IPv4Address, hops: [Hop]) {
-        stop()
         self.host = host
         resolvedAddress = destination
         self.hops = hops

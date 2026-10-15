@@ -8,9 +8,7 @@ final class AppModel {
     let ping = PingSession()
     let portLists = PortListStore()
     let ports: PortScanModel
-    let trace = TraceSession()
-    let dnsLookup = DNSLookupModel()
-    let whois = WhoisModel()
+    let tools = NetworkToolsModel()
     let publicNetwork = PublicNetworkModel()
     var showInspector = true
     /// The host table's filter, typed in the toolbar.
@@ -51,7 +49,6 @@ struct NetScannerApp: App {
         }
         .defaultSize(width: 1280, height: 720)
         .commands {
-            NetworkToolCommands()
             CommandMenu("Scan") {
                 Button(model.scanner.isScanningAny ? "Stop Scan" : "Scan All Interfaces") {
                     if model.scanner.isScanningAny {
@@ -68,7 +65,11 @@ struct NetScannerApp: App {
             }
         }
 
-        NetworkToolScenes(model: model)
+        // Listed in the Window menu too.
+        Window("Network Tools", id: networkToolsWindowID) {
+            NetworkToolsView(model: model.tools)
+        }
+        .defaultSize(width: 640, height: 640)
     }
 }
 
@@ -122,11 +123,11 @@ struct ContentView: View {
                     .standaloneToolbarButton()
                 }
                 .standaloneToolbarItem()
-                // A Menu ignores the glass button style; the toolbar's shared background gives it
-                // the same capsule as the ▶ button.
                 ToolbarItem(placement: .navigation) {
-                    NetworkToolsMenu()
+                    NetworkToolsButton()
+                        .standaloneToolbarButton()
                 }
+                .standaloneToolbarItem()
                 ToolbarItem(placement: .navigation) {
                     Button("Inspector", systemImage: "sidebar.right") { model.showInspector.toggle() }
                         .help(model.showInspector ? "Hide Inspector" : "Show Inspector")
@@ -160,7 +161,7 @@ struct ContentView: View {
             if let scene = environment["NETSCANNER_DEMO"] {
                 try? await Task.sleep(for: .milliseconds(300))
                 DemoData.load(scene, into: model)
-                if let tool = DemoData.tool(for: scene) { openWindow(id: tool.windowID) }
+                if DemoData.opensNetworkTools(scene) { openWindow(id: networkToolsWindowID) }
                 return
             }
             guard environment["NETSCANNER_AUTOSCAN"] == "1" else { return }

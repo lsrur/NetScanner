@@ -1,28 +1,11 @@
 import SwiftUI
 
-struct TracePanel: View {
-    @Bindable var session: TraceSession
+/// The Traceroute tab of the Network Tools window.
+struct TraceResultsView: View {
+    let session: TraceSession
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                TextField("Host or IP", text: $session.host, prompt: Text(verbatim: "example.com"))
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { if !session.isRunning { session.start() } }
-                Picker("Max hops", selection: $session.maxHops) {
-                    ForEach([15, 30, 64], id: \.self) { Text("\($0)").tag($0) }
-                }
-                .fixedSize()
-            }
-            Button(action: toggle) {
-                Label(session.isRunning ? "Stop" : "Start Traceroute",
-                      systemImage: session.isRunning ? "stop.fill" : "point.topleft.down.to.point.bottomright.curvepath")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .keyboardShortcut(.return, modifiers: .command)
-            .disabled(!session.isRunning && session.host.trimmingCharacters(in: .whitespaces).isEmpty)
-
+        VStack(alignment: .leading, spacing: 8) {
             if let error = session.errorMessage {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
@@ -75,10 +58,6 @@ struct TracePanel: View {
             .cellToolTip(Self.tooltip(hop))
         }
         .listStyle(.bordered)
-    }
-
-    private func toggle() {
-        session.isRunning ? session.stop() : session.start()
     }
 
     /// "12.3  11.9  *  ms" — one value per probe.

@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|summary`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
@@ -28,12 +28,13 @@ enum DemoData {
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .ports
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
-        case "trace":
+        case "trace", "dns", "whois":
             model.selectedHostID = HostID(interface: "en0", address: nas)
-            model.trace.loadDemo(host: "example.com", destination: IPv4Address("203.0.113.80")!, hops: traceHops)
-        case "dns":
-            model.selectedHostID = HostID(interface: "en0", address: nas)
-            model.dnsLookup.loadDemo(query: "example.com", records: dnsRecords)
+            model.tools.trace.loadDemo(host: "example.com", destination: IPv4Address("203.0.113.80")!, hops: traceHops)
+            model.tools.dns.loadDemo(records: dnsRecords)
+            model.tools.whois.loadDemo(answers: whoisAnswers)
+            model.tools.loadDemo(destination: "example.com",
+                                 tab: scene == "trace" ? .traceroute : scene == "dns" ? .dns : .whois)
         case "summary":
             model.selectedHostID = nil
         default:
@@ -45,13 +46,9 @@ enum DemoData {
             .setFrame(NSRect(x: 80, y: 80, width: 1480, height: 860), display: true)
     }
 
-    /// The tool window a scene shows, if any.
-    static func tool(for scene: String) -> NetworkTool? {
-        switch scene {
-        case "trace": .traceroute
-        case "dns": .dns
-        default: nil
-        }
+    /// Scenes shown in the Network Tools window.
+    static func opensNetworkTools(_ scene: String) -> Bool {
+        ["trace", "dns", "whois"].contains(scene)
     }
 
     private static let traceHops: [TraceSession.Hop] = [
@@ -72,6 +69,25 @@ enum DemoData {
         DNSRecord(type: "NS", value: "ns2.example.net.", ttl: 86400),
         DNSRecord(type: "TXT", value: "\"v=spf1 mx -all\"", ttl: 3600),
         DNSRecord(type: "SOA", value: "ns1.example.net. hostmaster.example.com. serial 2026101501 refresh 7200 retry 3600 expire 1209600 minimum 300", ttl: 3600),
+    ]
+
+    private static let whoisAnswers: [(server: String, text: String)] = [
+        ("whois.iana.org", """
+        domain:       COM
+        organisation: Example Registry Services
+        whois:        whois.registry.example
+        status:       ACTIVE
+        """),
+        ("whois.registry.example", """
+        Domain Name: EXAMPLE.COM
+        Registrar: Example Registrar, LLC
+        Registrar WHOIS Server: whois.registrar.example
+        Creation Date: 1995-08-14T04:00:00Z
+        Registry Expiry Date: 2027-08-13T04:00:00Z
+        Name Server: NS1.EXAMPLE.NET
+        Name Server: NS2.EXAMPLE.NET
+        DNSSEC: signedDelegation
+        """),
     ]
 
     private static let nas = IPv4Address("192.168.1.20")!

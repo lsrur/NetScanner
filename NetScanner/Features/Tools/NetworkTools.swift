@@ -1,14 +1,13 @@
+import Observation
 import SwiftUI
 
-/// Tools that aren't tied to a host of the LAN (their targets are usually on the internet),
-/// each in its own window, opened from the toolbar's 🔧 menu or the Tools menu.
+/// Tools that aren't tied to a host of the LAN; their destinations are usually on the internet.
 enum NetworkTool: String, CaseIterable, Identifiable {
     case traceroute
     case dns
     case whois
 
     var id: Self { self }
-    var windowID: String { "tool-\(rawValue)" }
 
     var title: String {
         switch self {
@@ -17,72 +16,192 @@ enum NetworkTool: String, CaseIterable, Identifiable {
         case .whois: "Whois"
         }
     }
+}
 
-    var systemImage: String {
-        switch self {
-        case .traceroute: "point.topleft.down.to.point.bottomright.curvepath"
-        case .dns: "network"
-        case .whois: "doc.text.magnifyingglass"
+/// One destination, the tools checked for it, run one after the other.
+@MainActor
+@Observable
+final class NetworkToolsModel {
+    enum Status { case idle, waiting, running, done }
+
+    var destination = ""
+    var enabled: Set<NetworkTool> = Set(NetworkTool.allCases)
+    var selectedTab: NetworkTool?
+
+    let trace = TraceSession()
+    let dns = DNSLookupModel()
+    let whois = WhoisModel()
+
+    /// The tools of the last run, in order: one tab each.
+    private(set) var tabs: [NetworkTool] = []
+    private(set) var isRunning = false
+    private var statuses: [NetworkTool: Status] = [:]
+    private var task: Task<Void, Never>?
+    private var runID = 0
+
+    var canRun: Bool {
+        !destination.trimmingCharacters(in: .whitespaces).isEmpty && !enabled.isEmpty
+    }
+
+    func status(of tool: NetworkTool) -> Status { statuses[tool] ?? .idle }
+
+    func run() {
+        let target = destination.trimmingCharacters(in: .whitespaces)
+        guard canRun else { return }
+        task?.cancel()
+        let tools = NetworkTool.allCases.filter(enabled.contains)
+        trace.clear()
+        dns.clear()
+        whois.clear()
+        tabs = tools
+        statuses = Dictionary(uniqueKeysWithValues: tools.map { ($0, .waiting) })
+        if selectedTab.map(tools.contains) != true { selectedTab = tools.first }
+        isRunning = true
+        runID += 1
+        let runID = runID
+        task = Task {
+            for tool in tools {
+                guard !Task.isCancelled else { break }
+                statuses[tool] = .running
+                switch tool {
+                case .traceroute: await trace.trace(target)
+                case .dns: await dns.lookup(target)
+                case .whois: await whois.lookup(target)
+                }
+                if self.runID == runID { statuses[tool] = .done }
+            }
+            guard self.runID == runID else { return }
+            isRunning = false
         }
+    }
+
+    func stop() {
+        task?.cancel()
+        runID += 1
+        isRunning = false
+        // What already finished keeps its ✓; the rest go back to idle.
+        statuses = statuses.filter { $0.value == .done }
     }
 }
 
-/// Minimum size of a tool window.
-let toolWindowMinSize = CGSize(width: 420, height: 380)
-
-extension View {
-    func toolWindowFrame() -> some View {
-        padding()
-            .frame(minWidth: toolWindowMinSize.width, maxWidth: .infinity,
-                   minHeight: toolWindowMinSize.height, maxHeight: .infinity, alignment: .topLeading)
+#if DEBUG
+extension NetworkToolsModel {
+    /// Finished results of every tool, for screenshots.
+    func loadDemo(destination: String, tab: NetworkTool) {
+        self.destination = destination
+        tabs = NetworkTool.allCases
+        statuses = Dictionary(uniqueKeysWithValues: tabs.map { ($0, .done) })
+        selectedTab = tab
     }
 }
+#endif
 
-/// The three windows, one per tool. `Window` (not `WindowGroup`): reopening a tool brings back
-/// its single window with the last results.
-struct NetworkToolScenes: Scene {
-    let model: AppModel
+let networkToolsWindowID = "network-tools"
 
-    var body: some Scene {
-        Window(NetworkTool.traceroute.title, id: NetworkTool.traceroute.windowID) {
-            TracePanel(session: model.trace).toolWindowFrame()
-        }
-        .defaultSize(width: 520, height: 520)
-        Window(NetworkTool.dns.title, id: NetworkTool.dns.windowID) {
-            DNSLookupPanel(model: model.dnsLookup).toolWindowFrame()
-        }
-        .defaultSize(width: 560, height: 480)
-        Window(NetworkTool.whois.title, id: NetworkTool.whois.windowID) {
-            WhoisPanel(model: model.whois).toolWindowFrame()
-        }
-        .defaultSize(width: 620, height: 620)
+/// Minimum size of the Network Tools window.
+let toolWindowMinSize = CGSize(width: 520, height: 440)
+
+struct NetworkToolsView: View {
+    @Bindable var model: NetworkToolsModel
+    @Bindable var trace: TraceSession
+    @Bindable var dns: DNSLookupModel
+
+    init(model: NetworkToolsModel) {
+        self.model = model
+        trace = model.trace
+        dns = model.dns
     }
-}
 
-/// Menu bar: Tools → Traceroute… / DNS Lookup… / Whois…
-struct NetworkToolCommands: Commands {
-    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                TextField("Destination", text: $model.destination, prompt: Text("Domain or IP address"))
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { if !model.isRunning { model.run() } }
+                Button(action: { model.isRunning ? model.stop() : model.run() }) {
+                    Label(model.isRunning ? "Stop" : "Run", systemImage: model.isRunning ? "stop.fill" : "play.fill")
+                        .frame(minWidth: 60)
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(!model.isRunning && !model.canRun)
+            }
+            HStack(spacing: 20) {
+                HStack(spacing: 6) {
+                    toggle(.traceroute)
+                    Picker("Max hops", selection: $trace.maxHops) {
+                        ForEach([15, 30, 64], id: \.self) { Text("\($0) hops").tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .help("Maximum number of hops")
+                }
+                HStack(spacing: 6) {
+                    toggle(.dns)
+                    Picker("Record type", selection: $dns.recordType) {
+                        ForEach(DNSLookup.RecordType.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .help("Record type. An IPv4 address is always looked up as PTR.")
+                }
+                toggle(.whois)
+            }
+            .disabled(model.isRunning)
 
-    var body: some Commands {
-        CommandMenu("Tools") {
-            ForEach(NetworkTool.allCases) { tool in
-                Button(tool.title + "…") { openWindow(id: tool.windowID) }
+            if model.tabs.isEmpty {
+                ContentUnavailableView("No Results Yet", systemImage: "network",
+                                       description: Text("Type a domain or IP address, check the tools to run and press Run."))
+                    .frame(maxHeight: .infinity)
+            } else {
+                Picker("Results", selection: $model.selectedTab) {
+                    ForEach(model.tabs) { Text(tabTitle($0)).tag(Optional($0)) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .frame(maxWidth: .infinity)
+                Group {
+                    switch model.selectedTab {
+                    case .traceroute: TraceResultsView(session: model.trace)
+                    case .dns: DNSResultsView(model: model.dns)
+                    case .whois: WhoisResultsView(model: model.whois)
+                    case nil: EmptyView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
+        .padding()
+        .frame(minWidth: toolWindowMinSize.width, maxWidth: .infinity,
+               minHeight: toolWindowMinSize.height, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func toggle(_ tool: NetworkTool) -> some View {
+        Toggle(tool.title, isOn: Binding(
+            get: { model.enabled.contains(tool) },
+            set: { isOn in
+                if isOn { model.enabled.insert(tool) } else { model.enabled.remove(tool) }
+            }))
+        .toggleStyle(.checkbox)
+        .fixedSize()
+    }
+
+    /// "Traceroute", "DNS Lookup …" while it runs, "Whois ✓" when done.
+    private func tabTitle(_ tool: NetworkTool) -> String {
+        switch model.status(of: tool) {
+        case .idle, .waiting: tool.title
+        case .running: tool.title + " …"
+        case .done: tool.title + " ✓"
+        }
     }
 }
 
-/// Toolbar: a button that drops down the same three tools.
-struct NetworkToolsMenu: View {
+/// Toolbar button that opens the Network Tools window.
+struct NetworkToolsButton: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Menu("Network Tools", systemImage: "wrench.and.screwdriver") {
-            ForEach(NetworkTool.allCases) { tool in
-                Button(tool.title + "…", systemImage: tool.systemImage) { openWindow(id: tool.windowID) }
-            }
-        }
-        .menuIndicator(.hidden)
-        .help("Network tools: traceroute, DNS lookup and whois")
+        Button("Network Tools", systemImage: "wrench.and.screwdriver") { openWindow(id: networkToolsWindowID) }
+            .help("Network tools: traceroute, DNS lookup and whois")
     }
 }

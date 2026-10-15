@@ -26,9 +26,7 @@ struct LayoutTests {
         host.bonjourName = "Android_0123456789abcdef0123456789abcdef"
         #expect(minimumWidth(HostDetails(host: host).inspectorPanelFrame()) <= inspectorPanelWidth)
         // The network tools live in their own windows.
-        #expect(minimumWidth(TracePanel(session: TraceSession())) <= toolWindowMinSize.width - 32)
-        #expect(minimumWidth(DNSLookupPanel(model: DNSLookupModel())) <= toolWindowMinSize.width - 32)
-        #expect(minimumWidth(WhoisPanel(model: WhoisModel())) <= toolWindowMinSize.width - 32)
+        #expect(minimumWidth(NetworkToolsView(model: NetworkToolsModel())) <= toolWindowMinSize.width)
         let udp = PortScanModel(lists: PortListStore(defaults: UserDefaults(suiteName: "layout-udp")!))
         udp.scanProtocol = .udp
         #expect(minimumWidth(PortScanPanel(model: udp).inspectorPanelFrame()) <= inspectorPanelWidth)

@@ -17,8 +17,8 @@ struct TraceTests {
     }
 
     @Test func formatsRTTs() {
-        #expect(TracePanel.rttText([12.34, nil, 9]) == "12.3  *  9.0 ms")
-        #expect(TracePanel.rttText([nil, nil, nil]) == "*  *  *")
+        #expect(TraceResultsView.rttText([12.34, nil, 9]) == "12.3  *  9.0 ms")
+        #expect(TraceResultsView.rttText([nil, nil, nil]) == "*  *  *")
     }
 
     /// Loopback: the first hop is already the destination.
@@ -123,5 +123,38 @@ struct DNSAndWhoisTests {
         #expect(Whois.isPrivate(NetScanner.IPv4Address("192.168.1.20")!))
         #expect(Whois.isPrivate(NetScanner.IPv4Address("100.64.3.1")!))
         #expect(!Whois.isPrivate(NetScanner.IPv4Address("203.0.113.42")!))
+    }
+}
+
+@MainActor
+struct NetworkToolsModelTests {
+    /// Loopback keeps it off the network: one hop, a PTR answer and the private-address note.
+    @Test func runsCheckedToolsInOrder() async throws {
+        let model = NetworkToolsModel()
+        model.destination = "127.0.0.1"
+        model.run()
+        #expect(model.tabs == [.traceroute, .dns, .whois])
+        #expect(model.selectedTab == .traceroute)
+        var started: [NetworkTool] = []
+        let deadline = Date().addingTimeInterval(20)
+        while model.isRunning, Date() < deadline {
+            for tool in NetworkTool.allCases where model.status(of: tool) == .running && started.last != tool {
+                started.append(tool)
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(!model.isRunning)
+        #expect(started.first == .traceroute)
+        #expect(NetworkTool.allCases.allSatisfy { model.status(of: $0) == .done })
+        #expect(model.trace.reachedDestination)
+        #expect(model.whois.message?.contains("private address") == true)
+
+        model.enabled = [.dns]
+        model.run()
+        #expect(model.tabs == [.dns])
+        #expect(model.selectedTab == .dns)
+        model.stop()
+        #expect(!model.isRunning)
+        #expect(model.status(of: .dns) == .idle)
     }
 }

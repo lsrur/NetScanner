@@ -57,19 +57,15 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 ![Open ports on a NAS, with service banners, typical uses and clickable http/https links](docs/screenshots/ports.png)
 
 ### Network tools
-The toolbar's 🔧 button (also the **Tools** menu) opens three tools, each in its own window. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
+The toolbar's 🔧 button opens a **Network Tools** window: type a destination, check the tools to run and press **Run**. They run one after the other, each with its results in its own tab. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
 
-#### Traceroute
-- The route to any name or address, using the same unprivileged ICMP socket as ping: no root, no helper.
-- Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a configurable maximum of 15, 30 or 64 hops.
-
-![Traceroute to example.com: each hop with its name, address and three round-trip times](docs/screenshots/trace.png)
-
-#### DNS lookup and whois
+- **Traceroute:** the route to any name or address, using the same unprivileged ICMP socket as ping (no root, no helper). Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a maximum of 15, 30 or 64 hops.
 - **DNS Lookup:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
-- **Whois** for domains and IP addresses, starting at IANA and following referrals to the registry and the registrar.
+- **Whois:** domains and public IP addresses, starting at IANA and following referrals to the registry and the registrar.
 
-![DNS records of example.com: A, AAAA, MX, NS, TXT and SOA](docs/screenshots/dns.png)
+![Network Tools window: traceroute to example.com, each hop with its name, address and three round-trip times](docs/screenshots/trace.png)
+
+![The DNS Lookup tab: A, AAAA, MX, NS, TXT and SOA records of example.com](docs/screenshots/dns.png)
 
 ### Public network info
 A status bar shows your **ISP**, **country**, and **public IPv4 and IPv6** addresses. It refreshes automatically when your network changes. While a scan runs, it shows the scan progress instead.
@@ -107,11 +103,13 @@ With a host selected, the top shows its IP plus editable **Name** and **Comment*
 - **Ports:** choose **TCP** or **UDP**. For TCP pick a port list (✏️ edits the lists) and a timeout, then **Scan Ports**. Hover a row to read the full banner and what the port is typically used for. Click an **http ↗ / https ↗** link to open the web interface, or double-click the row.
 
 ### Network tools
-Click 🔧 in the toolbar (or open the **Tools** menu) and choose **Traceroute…**, **DNS Lookup…** or **Whois…**. Each opens its own window and keeps its results until you run it again. Type a domain or IP and press Return (or ⌘↩).
+Click 🔧 in the toolbar (the window is also listed in the **Window** menu).
 
-- **Traceroute:** optionally change the maximum number of hops, then **Start Traceroute** (the same button stops it).
-- **DNS Lookup:** pick a record type, or **All**. An IPv4 address is looked up as PTR.
-- **Whois:** domains and public IP addresses.
+1. Type a domain or IP address in **Destination**.
+2. Check **Traceroute** (pick the maximum hops), **DNS Lookup** (pick a record type, or **All**) and/or **Whois**.
+3. Press **Run**, Return or ⌘↩. The tools run in that order; each tab shows **…** while its tool runs and **✓** when it's done. **Stop** cancels the rest.
+
+The window keeps the last results until you run it again.
 
 ### Status bar
 Shows ISP, country flag and public IPs. Click ↻ to refresh them manually.

@@ -6,12 +6,22 @@ struct HostTableView: View {
     @Environment(AppModel.self) private var app
     let scanner: ScannerModel
     @Binding var selection: HostID?
-    @State private var sortOrder = [KeyPathComparator(\DiscoveredHost.address)]
+    @State private var sortOrder = Self.initialSortOrder
     /// Visibility, order and widths of the columns; changed from the header's context menu.
     @State private var columns = Persisted.load(TableColumnCustomization<DiscoveredHost>.self,
                                                 forKey: Self.columnsKey, from: .standard) ?? TableColumnCustomization()
     @State private var notice: String?
     private static let columnsKey = "hostTableColumns"
+
+    private static var initialSortOrder: [KeyPathComparator<DiscoveredHost>] {
+        #if DEBUG
+        // NETSCANNER_SORT=firstSeen: newest devices first, for screenshots.
+        if ProcessInfo.processInfo.environment["NETSCANNER_SORT"] == "firstSeen" {
+            return [KeyPathComparator(\DiscoveredHost.firstSeenSortKey, order: .reverse)]
+        }
+        #endif
+        return [KeyPathComparator(\DiscoveredHost.address)]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -163,6 +173,13 @@ struct HostTableView: View {
         }
         .width(min: 80, ideal: 160)
             .customizationID("comment")
+        TableColumn("First Seen", value: \.firstSeenSortKey) { host in
+            Text(host.firstSeen?.formatted(date: .numeric, time: .shortened) ?? "")
+                .monospacedDigit()
+                .cellToolTip(host.firstSeen?.formatted(date: .complete, time: .standard) ?? "")
+        }
+        .width(min: 90, ideal: 130)
+            .customizationID("firstSeen")
         TableColumn("Latency", value: \.latencySortKey) { host in
             Text(host.latency.map { $0.formatted(.number.precision(.fractionLength(1))) + " ms" } ?? "—")
                 .monospacedDigit()

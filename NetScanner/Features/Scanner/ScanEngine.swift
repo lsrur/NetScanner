@@ -39,6 +39,8 @@ struct DiscoveredHost: Identifiable, Hashable, Sendable {
     var isGateway = false
     /// Only set for this Mac (`hw.model`, e.g. "MacBookPro18,2").
     var hardwareModel: String?
+    /// When NetScanner first found this device (by MAC, or IP without one), across sessions.
+    var firstSeen: Date?
 
     /// The name a device gives itself in its services ("Living Room", "Kitchen speaker").
     var advertisedName: String? {
@@ -71,6 +73,7 @@ struct DiscoveredHost: Identifiable, Hashable, Sendable {
     var kindText: String { kind.rawValue }
     var modelText: String { model ?? "" }
     var latencySortKey: Double { latency ?? .infinity }
+    var firstSeenSortKey: Date { firstSeen ?? .distantFuture }
 }
 
 struct ScanState: Sendable {
@@ -106,6 +109,8 @@ final class ScannerModel {
     private(set) var savedScans: [ScanTarget]
     /// Host names and comments, persisted, keyed by `HostAnnotation.key(for:)`.
     private(set) var annotations: [String: HostAnnotation]
+    /// When each device was first found, persisted, keyed like the annotations.
+    private(set) var firstSeen: [String: Date]
     private let defaults: UserDefaults
     private let interfaceProvider: () -> [NetworkInterface]
     private var tasks: [ScanTarget.ID: Task<Void, Never>] = [:]
@@ -116,6 +121,7 @@ final class ScannerModel {
     /// Previous format: interface and range targets mixed; only the ranges carry over.
     private static let legacyTargetsKey = "scanTargets"
     private static let annotationsKey = "hostAnnotations"
+    private static let firstSeenKey = "hostFirstSeen"
 
     init(defaults: UserDefaults = .standard,
          interfaceProvider: @escaping () -> [NetworkInterface] = NetworkInterface.current) {
@@ -125,6 +131,7 @@ final class ScannerModel {
             ?? (Persisted.load([ScanTarget].self, forKey: Self.legacyTargetsKey, from: defaults) ?? [])
                 .filter { $0.rangeText != nil }
         annotations = Persisted.load([String: HostAnnotation].self, forKey: Self.annotationsKey, from: defaults) ?? [:]
+        firstSeen = Persisted.load([String: Date].self, forKey: Self.firstSeenKey, from: defaults) ?? [:]
         refreshInterfaces()
     }
 
@@ -249,7 +256,7 @@ final class ScannerModel {
         }
     }
 
-    /// 🗑: stops any scan and empties the results. Saved names and comments are kept.
+    /// 🗑: stops any scan and empties the results. Saved names, comments and first-seen dates are kept.
     func clearResults() {
         stopAll()
         generation += 1
@@ -312,18 +319,39 @@ final class ScannerModel {
     }
 
     private func applyAnnotation(at index: Int) {
-        let annotation = annotations[HostAnnotation.key(for: hosts[index])]
+        let key = HostAnnotation.key(for: hosts[index])
+        let annotation = annotations[key]
         hosts[index].customName = annotation?.name
         hosts[index].comment = annotation?.comment
+        hosts[index].firstSeen = firstSeen[key]
+    }
+
+    /// Stamps devices seen for the first time. Runs once their MACs are known, so a device
+    /// isn't first recorded by IP and then again by MAC.
+    private func recordFirstSeen(where belongs: (DiscoveredHost) -> Bool) {
+        let now = Date.now
+        var changed = false
+        for index in hosts.indices where belongs(hosts[index]) && hosts[index].firstSeen == nil {
+            let key = HostAnnotation.key(for: hosts[index])
+            if firstSeen[key] == nil {
+                firstSeen[key] = now
+                changed = true
+            }
+            hosts[index].firstSeen = firstSeen[key]
+        }
+        if changed {
+            Persisted.save(firstSeen, forKey: Self.firstSeenKey, to: defaults)
+        }
     }
 
     // MARK: Export
 
     var csv: String {
-        let header = "IP,Type,IPv6 Local,IPv6 Global,MAC,Vendor,Model,Hostname,Comment,Latency (ms),Source,Interface"
+        let header = "IP,Type,IPv6 Local,IPv6 Global,MAC,Vendor,Model,Hostname,Comment,First Seen,Latency (ms),Source,Interface"
         let rows = hosts.sorted { ($0.interface, $0.address.raw) < ($1.interface, $1.address.raw) }.map { host in
             [host.address.description, host.kindText, host.ipv6LinkLocal.joined(separator: " "), host.ipv6Global.joined(separator: " "),
              host.macText, host.vendorText, host.modelText, host.hostnameText, host.commentText,
+             host.firstSeen?.ISO8601Format() ?? "",
              host.latency.map { String(format: "%.2f", $0) } ?? "", host.source.rawValue, host.interface]
                 .map { "\"" + $0.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
                 .joined(separator: ",")
@@ -386,6 +414,7 @@ final class ScannerModel {
                 upsert(DiscoveredHost(interface: name, address: address, source: .arp, mac: mac))
             }
         }
+        recordFirstSeen(where: belongs)
         IPv6Neighbors.pingAllNodes(interface: name)
         try? await Task.sleep(for: .milliseconds(500))
         let ipv6ByMAC = IPv6Neighbors.classify(IPv6Neighbors.read(interface: name))

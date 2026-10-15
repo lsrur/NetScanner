@@ -206,6 +206,7 @@ struct HostDetails: View {
                 row("IPv6 Global", host.ipv6Global.isEmpty ? nil : host.ipv6Global.joined(separator: "\n"))
                 row("MAC", host.mac?.description)
                 row("Vendor", host.vendor)
+                row("First Seen", host.firstSeen?.formatted(date: .abbreviated, time: .shortened))
                 row("Latency", host.latency.map { $0.formatted(.number.precision(.fractionLength(1))) + " ms" })
                 row("Source", host.source.rawValue)
                 row("Interface", host.interface)

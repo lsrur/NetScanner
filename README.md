@@ -37,6 +37,7 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 - **Your own names and comments** for each device, saved by MAC address, so they follow the device when DHCP hands it a new IP.
 - **Filter** the table as you type (⌘F) by IP, MAC, vendor, model, type, any name, comment or service.
 - **Choose your columns:** right-click the header to show or hide them; visibility, order and widths are remembered.
+- **First seen:** the date and time NetScanner first found each device is remembered across scans and launches (by MAC, or by IP when there's none). Sort by the **First Seen** column to spot devices that just joined your network.
 - **Wake-on-LAN** from the context menu of any host with a known MAC.
 - The **default gateway** is tagged in the table, and the scan summary lists it together with the **DNS servers** in use.
 - Sortable table, **CSV export**, and copy actions for IP, IPv6, MAC and hostname.
@@ -87,7 +88,7 @@ Every scan replaces the previous results. Very large subnets (bigger than a /22)
 The first scan triggers macOS's **Local Network** permission prompt. Allow it, or nothing will answer. If it was denied, NetScanner shows a banner with a button that opens System Settings.
 
 ### The host table
-- Click a column header to sort.
+- Click a column header to sort. Click **First Seen** twice to list the newest devices first.
 - Type in **Filter hosts** (or press **⌘F**) to narrow the list; every word must match.
 - Right-click a column header to show or hide columns.
 - Right-click a host to wake it (Wake-on-LAN) or copy its IP, IPv6 addresses, MAC or hostname. Edit its name and comment in the inspector.
@@ -169,8 +170,8 @@ scripts/update-oui.sh        # IEEE vendor database
 scripts/update-services.sh   # service names from /etc/services
 ```
 
-Debug builds also accept two environment variables, handy for screenshots: `NETSCANNER_AUTOSCAN=1` scans all interfaces on launch, and `NETSCANNER_SELECT=<ip>` selects that host when the scan ends.
-The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|summary`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
+Debug builds also accept some environment variables, handy for screenshots: `NETSCANNER_AUTOSCAN=1` scans all interfaces on launch, `NETSCANNER_SELECT=<ip>` selects that host when the scan ends, and `NETSCANNER_SORT=firstSeen` starts with the newest devices first.
+The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|new|summary`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
 
 ```sh
 NETSCANNER_AUTOSCAN=1 build/Build/Products/Debug/NetScanner.app/Contents/MacOS/NetScanner

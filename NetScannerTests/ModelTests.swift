@@ -151,6 +151,27 @@ struct ModelTests {
         #expect(reloaded.host(peer.id)?.hostname == reloaded.host(peer.id)?.detectedName)
     }
 
+    @Test func firstSeenIsRecordedOnceAndPersists() async throws {
+        let (scanner, defaults) = makeScanner(#function)
+        await runAll(scanner)
+        let peer = try #require(scanner.hosts.first { $0.address.description == "127.0.0.1" })
+        let first = try #require(peer.firstSeen)
+        #expect(abs(first.timeIntervalSinceNow) < 60)
+        #expect(scanner.csv.contains(first.ISO8601Format()))
+
+        // Later scans, clearing and a new session keep the original date.
+        try await Task.sleep(for: .milliseconds(20))
+        await runAll(scanner)
+        #expect(scanner.host(peer.id)?.firstSeen == first)
+        scanner.clearResults()
+        let lo0 = NetworkInterface(name: "lo0", address: NetScanner.IPv4Address("127.0.0.2")!,
+                                   netmask: NetScanner.IPv4Address("255.255.255.252")!, macAddress: nil)
+        let reloaded = ScannerModel(defaults: defaults, interfaceProvider: { [lo0] })
+        #expect(reloaded.firstSeen[HostAnnotation.key(for: peer)] == first)
+        await runAll(reloaded)
+        #expect(reloaded.host(peer.id)?.firstSeen == first)
+    }
+
     @Test func annotationKeyPrefersMAC() {
         var host = DiscoveredHost(interface: "en0", address: NetScanner.IPv4Address("192.168.0.9")!, source: .icmp)
         #expect(HostAnnotation.key(for: host) == "ip:192.168.0.9")

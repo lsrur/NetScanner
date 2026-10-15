@@ -37,6 +37,9 @@ enum DemoData {
                                  tab: scene == "trace" ? .traceroute : scene == "dns" ? .dns : .whois)
         case "summary":
             model.selectedHostID = nil
+        case "new":
+            model.selectedHostID = nil
+            model.showInspector = false
         default:
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .info
@@ -98,7 +101,8 @@ enum DemoData {
                              computer: String? = nil, name: String? = nil, comment: String? = nil,
                              linkLocal: String? = nil, global: [String] = [],
                              services: [(String, [String: String])] = [], upnp: UPnPDevice? = nil,
-                             gateway: Bool = false, hardware: String? = nil, title: String? = nil) -> DiscoveredHost {
+                             gateway: Bool = false, hardware: String? = nil, title: String? = nil,
+                             seenDaysAgo: Double? = nil) -> DiscoveredHost {
         var host = DiscoveredHost(interface: "en0", address: IPv4Address(raw: 0xC0A8_0100 | UInt32(last)),
                                   source: source, latency: latency, mac: MACAddress(mac), vendor: vendor)
         host.bonjourName = bonjour
@@ -114,6 +118,9 @@ enum DemoData {
         host.isGateway = gateway
         host.hardwareModel = hardware
         host.webTitle = title
+        // Spread over the last months unless given; whole minutes so the column looks natural.
+        let days = seenDaysAgo ?? Double(Int(last) % 40) * 4.3 + 12
+        host.firstSeen = Date(timeIntervalSinceNow: (-days * 86_400 / 60).rounded() * 60)
         return host
     }
 
@@ -152,7 +159,7 @@ enum DemoData {
         host(63, .tcp, latency: nil, mac: "d8:bb:c1:44:0e:63", vendor: "Micro-Star INTL Co., Ltd.", netbios: "DESKTOP-7Q2K4LM",
              comment: "Gaming PC", linkLocal: "fe80::5d1c:8a2e:b07f:63c4"),
         host(77, .arp, latency: nil, mac: "bc:ad:28:9f:13:77", vendor: "Hangzhou Hikvision Digital Technology Co.,Ltd.",
-             name: "Front Door Camera", comment: "Garage", title: "IPC Web Login"),
+             name: "Front Door Camera", comment: "Garage", title: "IPC Web Login", seenDaysAgo: 0.03),
         host(88, .icmp, latency: 12.6, mac: "f4:f5:d8:6b:20:88", vendor: "Google, Inc.", bonjour: "Chromecast-Kitchen",
              linkLocal: "fe80::f6f5:d8ff:fe6b:2088",
              services: [("_googlecast._tcp", ["md": "Chromecast", "fn": "Kitchen"])]),

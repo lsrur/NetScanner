@@ -69,10 +69,6 @@ struct HostTableView: View {
         }
         .contextMenu(forSelectionType: HostID.self) { ids in
             if let host = scanner.host(ids.first) {
-                Button("Edit Name and Comment…", systemImage: "pencil") {
-                    selection = host.id
-                    app.showInspector = true
-                }
                 if host.mac != nil, host.source != .local {
                     Button("Wake on LAN", systemImage: "power") { wake(host) }
                 }

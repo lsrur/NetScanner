@@ -78,7 +78,7 @@ The first scan triggers macOS's **Local Network** permission prompt. Allow it, o
 - Click a column header to sort.
 - Type in **Filter hosts** (or press **⌘F**) to narrow the list; every word must match.
 - Right-click a column header to show or hide columns.
-- Right-click a host to wake it (Wake-on-LAN), copy its IP, IPv6 addresses, MAC or hostname, or edit its name and comment.
+- Right-click a host to wake it (Wake-on-LAN) or copy its IP, IPv6 addresses, MAC or hostname. Edit its name and comment in the inspector.
 - Custom names appear in bold in the **Hostname** column.
 
 ### The inspector (right panel)

@@ -21,3 +21,7 @@ Debug builds accept `NETSCANNER_AUTOSCAN=1` (scan all interfaces on launch) and 
 - **Host names:** Bonjour (multicast reverse lookup), NetBIOS node status and the router's DNS are queried in parallel.
 - **Local Network:** macOS asks for permission the first time. If it is denied, scans find nothing and the app shows a banner linking to System Settings.
 - **Inspector:** a classic `HSplitView` instead of `.inspector`, because on macOS 26 the inspector floats over the content and wide tables scroll underneath it.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

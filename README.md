@@ -5,7 +5,8 @@
 <h1 align="center">NetScanner</h1>
 
 <p align="center">
-  A native macOS network scanner: discover every device on your LAN, see who it is, ping it and scan its ports.<br>
+  A native macOS network toolkit: discover and identify every device on your LAN, analyze nearby Wi-Fi,<br>
+  check your Internet connection and speed, and run ping, traceroute, DNS and whois — all in one window.<br>
   SwiftUI · macOS 15+ · App Sandbox · no root required
 </p>
 
@@ -13,18 +14,31 @@
 
 ## Overview
 
-NetScanner sweeps the subnets of your Mac's network interfaces and lists every device that answers: its IPv4 and IPv6 addresses, MAC address, vendor, name and latency. Select a host to see everything that was detected about it, give it your own name and a comment, run a continuous ping with live statistics, or scan its TCP ports, with web interfaces turned into clickable links.
+Everything lives in one window, with a sidebar for its four sections:
 
-Everything lives in one window: the sidebar switches between **LAN Scan**, **Wi-Fi Analyzer**, **Internet Connection** and **Network Tools**.
+- **LAN Scan** sweeps the subnets of your Mac's network interfaces and lists every device that answers: IPv4 and IPv6 addresses, MAC, vendor, type, model, name and latency. Select a host to see everything detected about it, give it your own name and a comment, ping it with live statistics, scan its TCP/UDP ports or look at the IP addresses it has used over time.
+- **Wi-Fi Analyzer** lists the access points around you with their channel, band, security and signal, charted over time or across channels.
+- **Internet Connection** shows your ISP and public addresses and measures your speed.
+- **Network Tools** runs ping, traceroute, DNS lookup and whois against any domain or address.
 
 It runs entirely inside the macOS App Sandbox and needs no administrator privileges or helper tools.
 
 ![Hosts found on a home network, with the inspector showing the details of a NAS](docs/screenshots/hosts.png)
 
+## Install
+
+Download the latest `NetScanner-<version>.dmg` from [Releases](https://github.com/lsrur/NetScanner/releases/latest), open it and drag NetScanner to Applications.
+
+The app is ad-hoc signed (no Apple Developer ID), so macOS blocks the first launch. Either try to open it once, then go to **System Settings → Privacy & Security** and click **Open Anyway**, or run:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/NetScanner.app
+```
+
 ## Features
 
-### Host discovery
-- Scans **all active interfaces at once**, each on its own subnet, or a single interface, or your **saved ranges** (`192.168.0.100-200`, `10.0.0.0/23`, single IPs, comma-separated).
+### LAN scan: host discovery
+- Scans **all active interfaces at once**, each on its own subnet, or a single interface, or your **saved ranges** (`192.168.1.100-200`, `10.0.0.0/23`, single IPs, comma-separated).
 - Finds hosts with **ICMP ping**, falling back to **TCP probes** for devices that ignore pings, and picks up silent devices from the ARP cache.
 - Shows, per host:
   - **IPv4**, **IPv6 link-local** and **IPv6 global** addresses
@@ -45,14 +59,14 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 - The **default gateway** is tagged in the table, and the scan summary lists it together with the **DNS servers** in use.
 - Sortable table, **CSV export**, and copy actions for IP, IPv6, MAC and hostname.
 
-### Ping
+### LAN scan: ping
 - Configurable count (or continuous) and interval.
 - Live **aggregate statistics**: sent, received, **packet loss**, **min / avg / max**, **standard deviation** and **jitter**.
 - RTT chart and a per-packet log.
 
 ![Pinging a TV: loss, min/avg/max, standard deviation, jitter and the RTT chart](docs/screenshots/ping.png)
 
-### Port scanning
+### LAN scan: port scanning
 - Editable **port lists**. It ships with *Top 100* (nmap's most common ports), *Home/IoT* (NAS, media servers, cameras, home automation, TVs, printers, Apple devices), *1–1024* and *1–65535*, and you can add your own.
 - For each open port: the service name, an open/closed indicator and a **Details** column with the **banner** the service announces (`OpenSSH 9.6p1`, the web server's `Server` header, FTP/SMTP/POP3/IMAP greetings, MySQL version) or, when it says nothing, a plain-English description of its typical use.
 - **UDP scan** of common services: DNS, TFTP, NTP, NetBIOS, SNMP (reads `sysDescr` with community *public*), SSDP/UPnP, SIP, mDNS, CoAP and Ubiquiti discovery. Each port gets a real request of its protocol, so *open* means it answered; *closed* means an ICMP port-unreachable came back.
@@ -60,15 +74,10 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 
 ![Open ports on a NAS, with service banners, typical uses and clickable http/https links](docs/screenshots/ports.png)
 
-### Network tools
-The **Network Tools** section takes a destination, check the tools to run and press **Run**. They run one after the other, and each one's results appear in a panel as it starts: two panels per row, scrolling down as needed. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
+### LAN scan: device history
+Every device is remembered across scans and launches. The inspector's **History** tab lists each IP address its MAC has used, with when it was first and last seen; when a scan finds it at a new address, the table shows the IP in orange with a ⇄ badge.
 
-- **Ping:** 3 to 50 echo requests, one per second, with the same statistics, chart and log as the inspector's Ping tab.
-- **Traceroute:** the route to any name or address, using the same unprivileged ICMP socket as ping (no root, no helper). Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a maximum of 15, 30 or 64 hops.
-- **DNS Lookup:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
-- **Whois:** domains and public IP addresses, starting at IANA and following referrals to the registry and the registrar.
-
-![Network Tools: ping, traceroute, DNS and whois results for example.com in four panels](docs/screenshots/tools.png)
+![A phone that moved to a new IP: orange address in the table, and its address history in the inspector](docs/screenshots/history.png)
 
 ### Wi-Fi analyzer
 The **Wi-Fi Analyzer** section scans the nearby Wi-Fi networks every few seconds while it's shown. For each access point (BSSID): SSID, channel, channel width, band, security, vendor, supported 802.11 modes, a signal meter, current/average/max/min signal, noise and when it was last seen, plus a sparkline of its signal. The chart above the table has two tabs: **Signal over Time** plots the checked networks, and **Channels** draws each checked network as an arch over the channels it occupies (20–160 MHz, bonded blocks centered where they really are), as tall as its signal, so crowded channels stand out. Networks missing from three scans in a row fade out (a single scan never catches every network). macOS limits how often apps can scan, so fresh results arrive about every 15–20 seconds whatever the interval. Filter by band (2.4, 5 or 6 GHz).
@@ -77,12 +86,22 @@ macOS only reveals network names and BSSIDs to apps with **Location** access, so
 
 ![Wi-Fi Analyzer: signal chart of the checked networks above a table of nearby access points](docs/screenshots/wifi.png)
 
-![Wi-Fi Analyzer channels tab: each 2.4 GHz network as an arch over its channels](docs/screenshots/wifi-channels.png)
+![Wi-Fi Analyzer channels tab: each checked 2.4 GHz network as an arch over its channels](docs/screenshots/wifi-channels.png)
 
 ### Internet connection
 The **Internet Connection** section shows your **ISP**, its **AS number**, your **public IPv4 and IPv6** addresses and their **location**, refreshed automatically when your network changes. It also runs a **speed test**: download and upload capacity, idle latency and responsiveness under load, measured by macOS's built-in `networkQuality` against Apple's servers.
 
 ![Internet Connection: ISP, ASN, public addresses, location and speed test results](docs/screenshots/internet.png)
+
+### Network tools
+The **Network Tools** section takes a domain or IP address and runs the tools you check when you press **Run**. They run one after the other, and each one's results appear in a panel as it starts: two panels per row, scrolling down as needed. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
+
+- **Ping:** 3 to 50 echo requests, one per second, with the same statistics, chart and log as the inspector's Ping tab.
+- **Traceroute:** the route to any name or address, using the same unprivileged ICMP socket as ping (no root, no helper). Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a maximum of 15, 30 or 64 hops.
+- **DNS Lookup:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
+- **Whois:** domains and public IP addresses, starting at IANA and following referrals to the registry and the registrar.
+
+![Network Tools: ping, traceroute, DNS and whois results for example.com in four panels](docs/screenshots/tools.png)
 
 ## Using NetScanner
 
@@ -114,10 +133,16 @@ Toggle it with the inspector button (▯▮) in the toolbar. With **no host sele
 
 With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and four tabs:
 
-- **Info:** everything detected about the host: Bonjour, NetBIOS and DNS names, all IPv6 addresses, MAC, vendor, latency, discovery source and interface.
+- **Info:** everything detected about the host: type and model, Bonjour, NetBIOS and DNS names, all IPv6 addresses, MAC, vendor, first and last seen, latency, discovery source, interface and advertised services.
 - **Ping:** pick a count and interval, then **Start Ping**.
 - **Ports:** choose **TCP** or **UDP**. For TCP pick a port list (✏️ edits the lists) and a timeout, then **Scan Ports**. Hover a row to read the full banner and what the port is typically used for. Click an **http ↗ / https ↗** link to open the web interface, or double-click the row.
 - **History:** every IP address the device has used (followed by its MAC), with when each was first and last seen. The current one is tagged **Current**, and the one it just left **Previous**.
+
+### Wi-Fi analyzer
+Select **Wi-Fi Analyzer** in the sidebar (⌘2) and allow Location access when asked (or later in System Settings → Privacy & Security → Location Services). Scanning runs while the section is shown and stops when you switch away; **Pause** stops it earlier, **Every** sets the interval and the 🗑 button forgets the history. Switch the chart between **Signal over Time** and **Channels** (pick the band there when the filter is **All**). Check a row to chart it; click a column header to sort, or right-click it to show or hide columns.
+
+### Internet connection
+Select **Internet Connection** in the sidebar (⌘3). Click ↻ to look up the public addresses again, and **Run Speed Test** to measure the connection (about 20 seconds; **Stop** cancels it).
 
 ### Network tools
 Select **Network Tools** in the sidebar (⌘4).
@@ -127,12 +152,6 @@ Select **Network Tools** in the sidebar (⌘4).
 3. Press **Run**, Return or ⌘↩. The tools run in that order; each panel shows a spinner while its tool runs and **✓** when it's done. **Stop** cancels the rest; a tool cut short keeps its partial results, marked **Stopped**.
 
 The section keeps the last results until you run it again, even while you use the others.
-
-### Wi-Fi analyzer
-Select **Wi-Fi Analyzer** in the sidebar (⌘2) and allow Location access when asked (or later in System Settings → Privacy & Security → Location Services). Scanning runs while the section is shown and stops when you switch away; **Pause** stops it earlier, **Every** sets the interval and the 🗑 button forgets the history. Switch the chart between **Signal over Time** and **Channels** (pick the band there when the filter is **All**). Check a row to chart it; click a column header to sort, or right-click it to show or hide columns.
-
-### Internet connection
-Select **Internet Connection** in the sidebar (⌘3). Click ↻ to look up the public addresses again, and **Run Speed Test** to measure the connection (about 20 seconds; **Stop** cancels it).
 
 ### Status bar
 Appears at the bottom only while a scan runs (progress and hosts found) or when there's no Internet connection.
@@ -195,7 +214,7 @@ scripts/update-services.sh   # service names from /etc/services
 ```
 
 Debug builds also accept some environment variables, handy for screenshots: `NETSCANNER_AUTOSCAN=1` scans all interfaces on launch, `NETSCANNER_SELECT=<ip>` selects that host when the scan ends, and `NETSCANNER_SORT=firstSeen` starts with the newest devices first.
-The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|wifi|wifi-channels|wifi-live|history|moved|new|summary|internet|tools|netping|trace|dns|whois`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
+The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|history|wifi|wifi-channels|internet|trace` (also `moved`, `new`, `summary`, `tools`, `netping`, `dns`, `whois`, and `wifi-live` for real Wi-Fi scans), which loads a fictional network (see `NetScanner/App/DemoData.swift`).
 
 ```sh
 NETSCANNER_AUTOSCAN=1 build/Build/Products/Debug/NetScanner.app/Contents/MacOS/NetScanner

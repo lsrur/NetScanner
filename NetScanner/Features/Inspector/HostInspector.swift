@@ -194,6 +194,7 @@ struct HostDetails: View {
     var body: some View {
         ScrollView {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                row("IP Changed", host.previousAddress.map { "Previously \($0)" }, color: .orange)
                 row("Type", host.isGateway ? "\(host.kindText) (default gateway)" : host.kindText)
                 row("Model", host.model)
                 row("Manufacturer", host.upnp?.maker)
@@ -207,6 +208,8 @@ struct HostDetails: View {
                 row("MAC", host.mac?.description)
                 row("Vendor", host.vendor)
                 row("First Seen", host.firstSeen?.formatted(date: .abbreviated, time: .shortened))
+                row("Last Seen", host.lastSeen?.formatted(date: .abbreviated, time: .shortened))
+                row("IP History", ipHistory)
                 row("Latency", host.latency.map { $0.formatted(.number.precision(.fractionLength(1))) + " ms" })
                 row("Source", host.source.rawValue)
                 row("Interface", host.interface)
@@ -221,14 +224,26 @@ struct HostDetails: View {
         }
     }
 
+    /// One line per address the device has used, most recent first, once it has used more than one.
+    private var ipHistory: String? {
+        guard host.addressHistory.count > 1 else { return nil }
+        return host.addressHistory.map { sighting in
+            let from = sighting.firstSeen.formatted(date: .abbreviated, time: .omitted)
+            let to = sighting.lastSeen.formatted(date: .abbreviated, time: .omitted)
+            return "\(sighting.address)  \(from == to ? from : "\(from) – \(to)")"
+        }
+        .joined(separator: "\n")
+    }
+
     @ViewBuilder
-    private func row(_ title: String, _ value: String?) -> some View {
+    private func row(_ title: String, _ value: String?, color: Color? = nil) -> some View {
         if let value {
             GridRow(alignment: .firstTextBaseline) {
                 Text(title)
                     .foregroundStyle(.secondary)
                     .gridColumnAlignment(.trailing)
                 Text(verbatim: value)
+                    .foregroundStyle(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(.primary))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
             }

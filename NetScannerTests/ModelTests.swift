@@ -118,7 +118,7 @@ struct ModelTests {
 
         scanner.clearResults()
         #expect(scanner.hosts.isEmpty && scanner.orderedScans.isEmpty && !scanner.hasResults)
-        #expect(!scanner.annotations.isEmpty)
+        #expect(scanner.devices.device(HostAnnotation.key(for: peer))?.comment == "Keep me")
 
         // A scan that was still running must not repopulate the table after clearing.
         let tasks = scanner.startAllInterfaces()
@@ -140,14 +140,15 @@ struct ModelTests {
         // A new session re-applies them when the host shows up again (keyed by IP here: no MAC).
         let lo0 = NetworkInterface(name: "lo0", address: NetScanner.IPv4Address("127.0.0.2")!,
                                    netmask: NetScanner.IPv4Address("255.255.255.252")!, macAddress: nil)
-        let reloaded = ScannerModel(defaults: defaults, interfaceProvider: { [lo0] })
+        let reloaded = ScannerModel(defaults: defaults, devices: scanner.devices, interfaceProvider: { [lo0] })
         await runAll(reloaded)
         #expect(reloaded.host(peer.id)?.customName == "Router de prueba")
 
         // Clearing the fields removes the stored annotation.
         reloaded.setCustomName("  ", for: peer.id)
         reloaded.setComment("", for: peer.id)
-        #expect(reloaded.annotations.isEmpty)
+        let device = try! #require(reloaded.devices.device(HostAnnotation.key(for: peer)))
+        #expect(device.customName == nil && device.comment == nil)
         #expect(reloaded.host(peer.id)?.hostname == reloaded.host(peer.id)?.detectedName)
     }
 
@@ -166,10 +167,12 @@ struct ModelTests {
         scanner.clearResults()
         let lo0 = NetworkInterface(name: "lo0", address: NetScanner.IPv4Address("127.0.0.2")!,
                                    netmask: NetScanner.IPv4Address("255.255.255.252")!, macAddress: nil)
-        let reloaded = ScannerModel(defaults: defaults, interfaceProvider: { [lo0] })
-        #expect(reloaded.firstSeen[HostAnnotation.key(for: peer)] == first)
+        let reloaded = ScannerModel(defaults: defaults, devices: scanner.devices, interfaceProvider: { [lo0] })
+        #expect(reloaded.devices.device(HostAnnotation.key(for: peer))?.firstSeen == first)
         await runAll(reloaded)
         #expect(reloaded.host(peer.id)?.firstSeen == first)
+        #expect(reloaded.host(peer.id)?.addressHistory.map(\.address) == ["127.0.0.1"])
+        #expect(reloaded.host(peer.id)?.previousAddress == nil)
     }
 
     @Test func annotationKeyPrefersMAC() {

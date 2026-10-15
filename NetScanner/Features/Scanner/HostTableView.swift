@@ -103,9 +103,11 @@ struct HostTableView: View {
 
     @TableColumnBuilder<DiscoveredHost, KeyPathComparator<DiscoveredHost>>
     private var addressColumns: some TableColumnContent<DiscoveredHost, KeyPathComparator<DiscoveredHost>> {
-        TableColumn("IP", value: \.address) { Text(verbatim: $0.address.description).monospaced() }
-            .width(min: 110, ideal: 120)
-                .customizationID("ip")
+        TableColumn("IP", value: \.address) { host in
+            AddressCell(host: host)
+        }
+        .width(min: 110, ideal: 140)
+            .customizationID("ip")
                 .disabledCustomizationBehavior(.visibility)
         TableColumn("Type", value: \.kindText) { host in
             HStack(spacing: 6) {
@@ -264,5 +266,28 @@ private struct DeviceKindLabelStyle: LabelStyle {
                 .frame(width: 18)
             configuration.title
         }
+    }
+}
+
+/// The IP, in orange with a ⇄ badge when the device came back at a different address.
+private struct AddressCell: View {
+    let host: DiscoveredHost
+    /// `.increased` on a selected row: orange on the blue highlight is hard to read.
+    @Environment(\.backgroundProminence) private var prominence
+
+    var body: some View {
+        let style = host.previousAddress == nil || prominence == .increased ? AnyShapeStyle(.primary) : AnyShapeStyle(.orange)
+        HStack(spacing: 4) {
+            Text(verbatim: host.address.description)
+                .monospaced()
+                .foregroundStyle(style)
+            if host.previousAddress != nil {
+                Image(systemName: "arrow.left.arrow.right.circle.fill")
+                    .foregroundStyle(style)
+                    .imageScale(.small)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cellToolTip(host.previousAddress.map { "New IP address. Previously \($0)." } ?? "")
     }
 }

@@ -39,8 +39,13 @@ struct DiscoveredHost: Identifiable, Hashable, Sendable {
     var isGateway = false
     /// Only set for this Mac (`hw.model`, e.g. "MacBookPro18,2").
     var hardwareModel: String?
-    /// When NetScanner first found this device (by MAC, or IP without one), across sessions.
+    /// From the device store (by MAC, or IP without one): when NetScanner first and last found
+    /// this device, and the addresses it has used, most recent first.
     var firstSeen: Date?
+    var lastSeen: Date?
+    var addressHistory: [AddressSighting] = []
+    /// Set when this scan found the device (by MAC) at a different address than the last time.
+    var previousAddress: IPv4Address?
 
     /// The name a device gives itself in its services ("Living Room", "Kitchen speaker").
     var advertisedName: String? {
@@ -107,10 +112,8 @@ final class ScannerModel {
     private var runOrder: [ScanTarget.ID] = []
     /// Named ranges from "Personalizar…", persisted. Interfaces are not stored: they come and go.
     private(set) var savedScans: [ScanTarget]
-    /// Host names and comments, persisted, keyed by `HostAnnotation.key(for:)`.
-    private(set) var annotations: [String: HostAnnotation]
-    /// When each device was first found, persisted, keyed like the annotations.
-    private(set) var firstSeen: [String: Date]
+    /// Known devices (names, comments, sightings), keyed by `HostAnnotation.key(for:)`.
+    let devices: DeviceStore
     private let defaults: UserDefaults
     private let interfaceProvider: () -> [NetworkInterface]
     private var tasks: [ScanTarget.ID: Task<Void, Never>] = [:]
@@ -120,18 +123,17 @@ final class ScannerModel {
     private static let savedScansKey = "savedScans"
     /// Previous format: interface and range targets mixed; only the ranges carry over.
     private static let legacyTargetsKey = "scanTargets"
-    private static let annotationsKey = "hostAnnotations"
-    private static let firstSeenKey = "hostFirstSeen"
 
-    init(defaults: UserDefaults = .standard,
+    init(defaults: UserDefaults = .standard, devices: DeviceStore? = nil,
          interfaceProvider: @escaping () -> [NetworkInterface] = NetworkInterface.current) {
         self.defaults = defaults
+        // Only the app's own defaults get the file on disk; tests pass their own suites.
+        self.devices = devices ?? (defaults == .standard ? .persistent() : .inMemory())
+        self.devices.importLegacy(from: defaults)
         self.interfaceProvider = interfaceProvider
         savedScans = Persisted.load([ScanTarget].self, forKey: Self.savedScansKey, from: defaults)
             ?? (Persisted.load([ScanTarget].self, forKey: Self.legacyTargetsKey, from: defaults) ?? [])
                 .filter { $0.rangeText != nil }
-        annotations = Persisted.load([String: HostAnnotation].self, forKey: Self.annotationsKey, from: defaults) ?? [:]
-        firstSeen = Persisted.load([String: Date].self, forKey: Self.firstSeenKey, from: defaults) ?? [:]
         refreshInterfaces()
     }
 
@@ -299,49 +301,49 @@ final class ScannerModel {
     // MARK: Annotations
 
     func setCustomName(_ name: String, for id: HostID) {
-        updateAnnotation(for: id) { $0.name = name.trimmingCharacters(in: .whitespaces).isEmpty ? nil : name }
+        guard let host = host(id) else { return }
+        let key = HostAnnotation.key(for: host)
+        devices.setName(name.trimmingCharacters(in: .whitespaces).isEmpty ? nil : name, for: key)
+        applyDevice(key)
     }
 
     func setComment(_ comment: String, for id: HostID) {
-        updateAnnotation(for: id) { $0.comment = comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : comment }
+        guard let host = host(id) else { return }
+        let key = HostAnnotation.key(for: host)
+        devices.setComment(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : comment, for: key)
+        applyDevice(key)
     }
 
-    private func updateAnnotation(for id: HostID, _ change: (inout HostAnnotation) -> Void) {
-        guard let index = index(of: id) else { return }
-        let key = HostAnnotation.key(for: hosts[index])
-        var annotation = annotations[key] ?? HostAnnotation()
-        change(&annotation)
-        annotations[key] = annotation.isEmpty ? nil : annotation
-        Persisted.save(annotations, forKey: Self.annotationsKey, to: defaults)
+    private func applyDevice(_ key: String) {
         for index in hosts.indices where HostAnnotation.key(for: hosts[index]) == key {
-            applyAnnotation(at: index)
+            applyDevice(at: index)
         }
     }
 
-    private func applyAnnotation(at index: Int) {
+    /// Copies what the store knows about the host's device into the row.
+    private func applyDevice(at index: Int) {
         let key = HostAnnotation.key(for: hosts[index])
-        let annotation = annotations[key]
-        hosts[index].customName = annotation?.name
-        hosts[index].comment = annotation?.comment
-        hosts[index].firstSeen = firstSeen[key]
+        let device = devices.device(key)
+        hosts[index].customName = device?.customName
+        hosts[index].comment = device?.comment
+        hosts[index].firstSeen = device?.firstSeen
+        hosts[index].lastSeen = device?.lastSeen
+        hosts[index].addressHistory = devices.history(key)
     }
 
-    /// Stamps devices seen for the first time. Runs once their MACs are known, so a device
-    /// isn't first recorded by IP and then again by MAC.
-    private func recordFirstSeen(where belongs: (DiscoveredHost) -> Bool) {
+    /// Records this scan's sightings: first/last seen, the address history, and whether a
+    /// device (by MAC) came back at another address. Runs once the MACs are known, so a
+    /// device isn't recorded by IP first and then again by MAC.
+    private func recordSightings(where belongs: (DiscoveredHost) -> Bool) {
         let now = Date.now
-        var changed = false
-        for index in hosts.indices where belongs(hosts[index]) && hosts[index].firstSeen == nil {
+        for index in hosts.indices where belongs(hosts[index]) {
             let key = HostAnnotation.key(for: hosts[index])
-            if firstSeen[key] == nil {
-                firstSeen[key] = now
-                changed = true
+            if let previous = devices.recordSighting(key, address: hosts[index].address, at: now) {
+                hosts[index].previousAddress = previous
             }
-            hosts[index].firstSeen = firstSeen[key]
+            applyDevice(at: index)
         }
-        if changed {
-            Persisted.save(firstSeen, forKey: Self.firstSeenKey, to: defaults)
-        }
+        devices.save()
     }
 
     // MARK: Export
@@ -409,12 +411,12 @@ final class ScannerModel {
         for (address, mac) in ARPTable.read() where addressSet.contains(address) {
             if let index = index(of: HostID(interface: name, address: address)) {
                 hosts[index].mac = mac
-                applyAnnotation(at: index)
+                applyDevice(at: index)
             } else {
                 upsert(DiscoveredHost(interface: name, address: address, source: .arp, mac: mac))
             }
         }
-        recordFirstSeen(where: belongs)
+        recordSightings(where: belongs)
         IPv6Neighbors.pingAllNodes(interface: name)
         try? await Task.sleep(for: .milliseconds(500))
         let ipv6ByMAC = IPv6Neighbors.classify(IPv6Neighbors.read(interface: name))
@@ -530,7 +532,7 @@ final class ScannerModel {
             }
         } else {
             hosts.append(host)
-            applyAnnotation(at: hosts.count - 1)
+            applyDevice(at: hosts.count - 1)
         }
     }
 }

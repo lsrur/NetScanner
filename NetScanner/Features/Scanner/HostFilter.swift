@@ -13,7 +13,8 @@ enum HostFilter {
             host.address.description, host.macText, host.vendor, host.model, host.kindText,
             host.customName, host.computerName, host.advertisedName, host.bonjourName, host.netbiosName, host.dnsName,
             host.upnp?.friendlyName, host.upnp?.manufacturer, host.webTitle, host.comment, host.interface,
-            host.isGateway ? "gateway" : nil,
+            host.isGateway ? "gateway" : nil, host.previousAddress?.description,
+            host.previousAddress == nil ? nil : "new ip changed",
         ]
         let lists = host.ipv6LinkLocal + host.ipv6Global + host.services.map(\.displayType)
         return (fields.compactMap { $0 } + lists).joined(separator: "\n").lowercased()

@@ -51,7 +51,9 @@ struct ScanTarget: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-/// User name and comment for a host, keyed by MAC (follows DHCP changes) or by IP without one.
+/// User name and comment for a host as v0.2 stored them in UserDefaults (now imported into the
+/// device store), and the key that identifies a device: its MAC (follows DHCP changes) or its IP
+/// without one.
 struct HostAnnotation: Codable, Equatable, Sendable {
     var name: String?
     var comment: String?

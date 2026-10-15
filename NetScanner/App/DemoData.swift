@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|summary`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|new|moved|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
@@ -37,6 +37,9 @@ enum DemoData {
                                  tab: scene == "trace" ? .traceroute : scene == "dns" ? .dns : .whois)
         case "summary":
             model.selectedHostID = nil
+        case "moved":
+            model.selectedHostID = HostID(interface: "en0", address: IPv4Address("192.168.1.12")!)
+            model.inspectorTab = .info
         case "new":
             model.selectedHostID = nil
             model.showInspector = false
@@ -102,7 +105,7 @@ enum DemoData {
                              linkLocal: String? = nil, global: [String] = [],
                              services: [(String, [String: String])] = [], upnp: UPnPDevice? = nil,
                              gateway: Bool = false, hardware: String? = nil, title: String? = nil,
-                             seenDaysAgo: Double? = nil) -> DiscoveredHost {
+                             seenDaysAgo: Double? = nil, movedFrom: UInt8? = nil) -> DiscoveredHost {
         var host = DiscoveredHost(interface: "en0", address: IPv4Address(raw: 0xC0A8_0100 | UInt32(last)),
                                   source: source, latency: latency, mac: MACAddress(mac), vendor: vendor)
         host.bonjourName = bonjour
@@ -121,6 +124,19 @@ enum DemoData {
         // Spread over the last months unless given; whole minutes so the column looks natural.
         let days = seenDaysAgo ?? Double(Int(last) % 40) * 4.3 + 12
         host.firstSeen = Date(timeIntervalSinceNow: (-days * 86_400 / 60).rounded() * 60)
+        host.lastSeen = .now
+        host.addressHistory = [AddressSighting(address: host.address.description, firstSeen: .now, lastSeen: .now)]
+        if let movedFrom, let firstSeen = host.firstSeen {
+            // DHCP handed it a new address since the previous scan.
+            let previous = IPv4Address(raw: 0xC0A8_0100 | UInt32(movedFrom))
+            host.previousAddress = previous
+            host.addressHistory = [
+                AddressSighting(address: host.address.description, firstSeen: .now, lastSeen: .now),
+                AddressSighting(address: previous.description, firstSeen: firstSeen, lastSeen: .now.addingTimeInterval(-86_400)),
+            ]
+        } else if let firstSeen = host.firstSeen {
+            host.addressHistory = [AddressSighting(address: host.address.description, firstSeen: firstSeen, lastSeen: .now)]
+        }
         return host
     }
 
@@ -135,7 +151,7 @@ enum DemoData {
              services: [("_airplay._tcp", [:]), ("_rfb._tcp", [:]), ("_smb._tcp", [:])], hardware: "MacBookPro18,2"),
         host(12, .icmp, latency: 48.3, mac: "6a:1b:3c:4d:5e:12", vendor: "Private (randomized)", bonjour: "Alexs-iPhone",
              linkLocal: "fe80::c81:22ff:fe9a:4412", global: ["2001:db8:4a2c:100:c81:22ff:fe9a:4412"],
-             services: [("_companion-link._tcp", ["rpmd": "iPhone15,2"])]),
+             services: [("_companion-link._tcp", ["rpmd": "iPhone15,2"])], movedFrom: 34),
         host(20, .icmp, latency: 0.9, mac: "00:11:32:a4:b2:20", vendor: "Synology Incorporated", bonjour: "DiskStation",
              netbios: "DISKSTATION", name: "Synology NAS", comment: "Backups + Plex",
              linkLocal: "fe80::211:32ff:fea4:b220", global: ["2001:db8:4a2c:100:211:32ff:fea4:b220"],

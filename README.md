@@ -37,7 +37,8 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 - **Your own names and comments** for each device, saved by MAC address, so they follow the device when DHCP hands it a new IP.
 - **Filter** the table as you type (⌘F) by IP, MAC, vendor, model, type, any name, comment or service.
 - **Choose your columns:** right-click the header to show or hide them; visibility, order and widths are remembered.
-- **First seen:** the date and time NetScanner first found each device is remembered across scans and launches (by MAC, or by IP when there's none). Sort by the **First Seen** column to spot devices that just joined your network.
+- **Device history:** every device is remembered across scans and launches (by MAC, or by IP when there's none): when it was **first** and **last seen**, and every IP address it has used. Sort by the **First Seen** column to spot devices that just joined your network.
+- **IP changes:** when a device comes back with a different address than in the previous scan, its IP shows in orange with a ⇄ badge; hover it (or look at the inspector) for the previous one.
 - **Wake-on-LAN** from the context menu of any host with a known MAC.
 - The **default gateway** is tagged in the table, and the scan summary lists it together with the **DNS servers** in use.
 - Sortable table, **CSV export**, and copy actions for IP, IPv6, MAC and hostname.
@@ -120,7 +121,7 @@ Shows ISP, country flag and public IPs. Click ↻ to refresh them manually.
 - Scanning, pinging and port scanning stay on your local network, unless you point a tool at an outside address yourself.
 - The only automatic external request is to [ipinfo.io](https://ipinfo.io), to display your public IP, ISP and country in the status bar.
 - DNS lookups go to the DNS servers your Mac already uses; whois queries go to whois.iana.org and the registry/registrar servers it refers to, only when you press **Whois**.
-- Saved data (names, comments, saved ranges and port lists) is stored locally in the app's sandbox container.
+- Saved data stays on your Mac, in the app's sandbox container: known devices (names, comments, first/last seen, IP history) in a SwiftData store, settings (saved ranges, port lists, columns) in its preferences.
 
 ## How it works
 

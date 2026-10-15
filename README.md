@@ -29,6 +29,11 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
   - **MAC address** and **vendor** (IEEE OUI database; randomized "private" MACs are flagged)
   - **Hostname**, resolved via **Bonjour/mDNS**, **NetBIOS** (Windows, Samba, NAS) and the router's **DNS**
   - **Latency** and how the host was found (ICMP, TCP, ARP)
+- **Device identification:** each host gets a **type** (router, computer, phone, TV, media player, speaker, printer, NAS, camera, smart home…) with an icon, and a **model** when the device reveals it. Evidence comes from:
+  - **Bonjour services** it advertises (AirPlay, Google Cast, IPP printing, HomeKit, SMB…) and their TXT records (e.g. `MacBookPro18,2`, `HP LaserJet M234`)
+  - **UPnP/SSDP** device descriptions (manufacturer, model, friendly name)
+  - the **title of its web interface** (e.g. "Synology DiskStation")
+  - the default gateway, vendor and names as fallbacks
 - **Your own names and comments** for each device, saved by MAC address, so they follow the device when DHCP hands it a new IP.
 - Sortable table, **CSV export**, and copy actions for IP, IPv6, MAC and hostname.
 
@@ -93,6 +98,7 @@ Shows ISP, country flag and public IPs. Click ↻ to refresh them manually.
 - **Unprivileged ping.** Uses a `SOCK_DGRAM` + `IPPROTO_ICMP` socket, which macOS allows without root. The receive buffer is raised to 1 MB because the default (~8 KB) drops replies when hundreds of pings are in flight.
 - **MAC and IPv6 neighbors.** Read from the kernel's ARP and NDP caches through the routing `sysctl`. Inside the sandbox (with Local Network access) this returns real MACs, while spawned `arp`/`ndp` tools only see redacted ones. An ICMPv6 ping to `ff02::1` fills the IPv6 neighbor cache first.
 - **Names.** Bonjour (multicast reverse PTR lookup), NetBIOS node status (UDP 137) and unicast reverse DNS are queried in parallel; the first answer wins.
+- **Identification.** A DNS-SD meta-query (`_services._dns-sd._udp`) finds every advertised service type; instances are resolved to IPs and their TXT records read. An SSDP `M-SEARCH` collects UPnP description URLs; when a device publishes several, the most informative one wins. The default gateway comes from the routing table. Rules then rank the evidence from strongest (model identifiers, services) to weakest (vendor, randomized MAC).
 - **Web detection.** A `HEAD /` request is sent over TLS first, then plain TCP, so HTTPS ports aren't mistaken for HTTP.
 
 ## Requirements

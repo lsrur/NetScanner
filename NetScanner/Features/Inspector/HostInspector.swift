@@ -126,9 +126,16 @@ private struct HostHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: host.address.description)
-                .font(.title2.monospaced().weight(.semibold))
-                .textSelection(.enabled)
+            HStack(spacing: 8) {
+                Image(systemName: host.kind.systemImage)
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30)
+                    .help(host.kindText)
+                Text(verbatim: host.address.description)
+                    .font(.title2.monospaced().weight(.semibold))
+                    .textSelection(.enabled)
+            }
             // Saved per MAC (or IP without one); edits persist as you type.
             TextField("Name", text: nameBinding, prompt: Text(verbatim: host.detectedName ?? "Name"))
                 .textFieldStyle(.roundedBorder)
@@ -155,7 +162,11 @@ struct HostDetails: View {
     var body: some View {
         ScrollView {
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                row("Type", host.isGateway ? "\(host.kindText) (default gateway)" : host.kindText)
+                row("Model", host.model)
+                row("Manufacturer", host.upnp?.maker)
                 row("Computer", host.computerName)
+                row("Advertised", host.advertisedName)
                 row("Bonjour", host.bonjourName)
                 row("NetBIOS", host.netbiosName)
                 row("DNS", host.dnsName)
@@ -166,6 +177,10 @@ struct HostDetails: View {
                 row("Latency", host.latency.map { $0.formatted(.number.precision(.fractionLength(1))) + " ms" })
                 row("Source", host.source.rawValue)
                 row("Interface", host.interface)
+                row("UPnP", host.upnp?.friendlyName)
+                row("Web Page", host.webTitle)
+                row("Services", host.services.isEmpty ? nil
+                    : Array(NSOrderedSet(array: host.services.map(\.displayType))).compactMap { $0 as? String }.joined(separator: "\n"))
                 row("Comment", host.comment)
             }
             .font(.callout)

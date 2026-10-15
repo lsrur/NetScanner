@@ -32,9 +32,32 @@ struct DiscoveredHost: Identifiable, Hashable, Sendable {
     /// From the user's saved annotation.
     var customName: String?
     var comment: String?
+    /// Identity evidence: advertised Bonjour services, UPnP description, web page title.
+    var services: [BonjourService] = []
+    var upnp: UPnPDevice?
+    var webTitle: String?
+    var isGateway = false
+    /// Only set for this Mac (`hw.model`, e.g. "MacBookPro18,2").
+    var hardwareModel: String?
 
-    var detectedName: String? { computerName ?? bonjourName ?? netbiosName ?? dnsName }
+    /// The name a device gives itself in its services ("Living Room", "Kitchen speaker").
+    var advertisedName: String? {
+        for type in ["_googlecast._tcp", "_airplay._tcp", "_device-info._tcp", "_raop._tcp", "_hap._tcp"] {
+            guard let service = services.first(where: { $0.type == type }) else { continue }
+            if let friendly = service.txt["fn"], !friendly.isEmpty { return friendly }
+            // RAOP instances are "MACADDRESS@Name".
+            let name = service.name.split(separator: "@", maxSplits: 1).last.map(String.init) ?? service.name
+            if !name.isEmpty { return name }
+        }
+        return nil
+    }
+
+    var detectedName: String? {
+        computerName ?? advertisedName ?? bonjourName ?? netbiosName ?? upnp?.friendlyName ?? dnsName
+    }
     var hostname: String? { customName ?? detectedName }
+    var kind: DeviceKind { DeviceClassifier.kind(for: self) }
+    var model: String? { DeviceClassifier.model(for: self) }
 
     var id: HostID { HostID(interface: interface, address: address) }
 
@@ -45,6 +68,8 @@ struct DiscoveredHost: Identifiable, Hashable, Sendable {
     var vendorText: String { vendor ?? "" }
     var hostnameText: String { hostname ?? "" }
     var commentText: String { comment ?? "" }
+    var kindText: String { kind.rawValue }
+    var modelText: String { model ?? "" }
     var latencySortKey: Double { latency ?? .infinity }
 }
 
@@ -277,10 +302,10 @@ final class ScannerModel {
     // MARK: Export
 
     var csv: String {
-        let header = "IP,IPv6 Local,IPv6 Global,MAC,Vendor,Hostname,Comment,Latency (ms),Source,Interface"
+        let header = "IP,Type,IPv6 Local,IPv6 Global,MAC,Vendor,Model,Hostname,Comment,Latency (ms),Source,Interface"
         let rows = hosts.sorted { ($0.interface, $0.address.raw) < ($1.interface, $1.address.raw) }.map { host in
-            [host.address.description, host.ipv6LinkLocal.joined(separator: " "), host.ipv6Global.joined(separator: " "),
-             host.macText, host.vendorText, host.hostnameText, host.commentText,
+            [host.address.description, host.kindText, host.ipv6LinkLocal.joined(separator: " "), host.ipv6Global.joined(separator: " "),
+             host.macText, host.vendorText, host.modelText, host.hostnameText, host.commentText,
              host.latency.map { String(format: "%.2f", $0) } ?? "", host.source.rawValue, host.interface]
                 .map { "\"" + $0.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
                 .joined(separator: ",")
@@ -308,6 +333,7 @@ final class ScannerModel {
                                        mac: interface.macAddress, computerName: Host.current().localizedName)
             local.ipv6LinkLocal = interface.ipv6Addresses.filter { $0.lowercased().hasPrefix("fe80:") }.sorted()
             local.ipv6Global = interface.ipv6Addresses.filter { !$0.lowercased().hasPrefix("fe80:") }.sorted()
+            local.hardwareModel = Self.hardwareModel()
             upsert(local)
         }
         func belongs(_ host: DiscoveredHost) -> Bool {
@@ -357,7 +383,12 @@ final class ScannerModel {
         guard isCurrent(generation) else { return }
         scans[id]?.progress = 0.9
 
-        // 3. Names: Bonjour (phones, Macs, printers), NetBIOS (Windows, Samba, NAS), router DNS.
+        // 3. Names and identity. Bonjour browsing and SSDP are network-wide and run alongside the
+        //    per-host name lookups; then each host's UPnP description and web page title.
+        async let advertised = BonjourBrowser.discover(timeout: 3)
+        async let upnpAnswers = SSDP.discover(interfaceAddress: interface.address, timeout: 2.5)
+        let gateway = DefaultGateway.read()[name]
+
         let addresses = hosts.filter { belongs($0) && $0.source != .local }.map(\.address)
         await withLimitedConcurrency(addresses, limit: 32) { address in
             async let bonjour = MulticastDNS.reverseLookup(address)
@@ -371,6 +402,35 @@ final class ScannerModel {
             hosts[index].netbiosName = netbios
             hosts[index].dnsName = dns
         }
+        let (services, answers) = await (advertised, upnpAnswers)
+        guard isCurrent(generation) else { return }
+        for index in hosts.indices where belongs(hosts[index]) {
+            let address = hosts[index].address
+            // This Mac's own services resolve to loopback.
+            let isLocal = hosts[index].source == .local
+            hosts[index].services = services.filter { $0.addresses.contains(address) || (isLocal && $0.addresses.contains(.loopback)) }
+                .sorted { $0.type < $1.type }
+            hosts[index].isGateway = address == gateway
+        }
+        scans[id]?.progress = 0.95
+
+        var locations: [IPv4Address: [URL]] = [:]
+        for answer in answers {
+            if let location = answer.location, locations[answer.address]?.contains(location) != true {
+                locations[answer.address, default: []].append(location)
+            }
+        }
+        let lookupLocations = locations
+        await withLimitedConcurrency(addresses, limit: 16) { address in
+            async let title = WebTitle.fetch(address)
+            async let device = UPnP.describe(lookupLocations[address] ?? [])
+            return (address, await title, await device)
+        } onResult: { address, title, device in
+            guard isCurrent(generation),
+                  let index = index(of: HostID(interface: name, address: address)) else { return }
+            hosts[index].webTitle = title
+            hosts[index].upnp = device
+        }
         guard isCurrent(generation) else { return }
 
         let found = hosts.filter(belongs)
@@ -380,6 +440,15 @@ final class ScannerModel {
         scans[id]?.hostCount = found.count
         scans[id]?.foundNothing = !found.contains { $0.source != .local }
         tasks[id] = nil
+    }
+
+    /// This Mac's model identifier, e.g. "MacBookPro18,2".
+    private static func hardwareModel() -> String? {
+        var size = 0
+        guard sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 0 else { return nil }
+        var buffer = [CChar](repeating: 0, count: size)
+        guard sysctlbyname("hw.model", &buffer, &size, nil, 0) == 0 else { return nil }
+        return buffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
     }
 
     private nonisolated static func probe(_ address: IPv4Address, on interface: String, pinger: ICMPPinger?) async -> DiscoveredHost? {

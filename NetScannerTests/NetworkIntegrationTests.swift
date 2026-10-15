@@ -79,6 +79,13 @@ struct NetworkIntegrationTests {
         #expect(!entries.contains { $0.mac.isRedacted })
     }
 
+    /// Uses the real LAN: the primary interface has a default gateway inside its subnet.
+    @Test func findsDefaultGateway() throws {
+        let interface = try #require(NetworkInterface.current().first)
+        let gateway = try #require(DefaultGateway.read()[interface.name])
+        #expect(interface.subnet.contains(gateway))
+    }
+
     @Test func findsActiveInterface() {
         let interfaces = NetworkInterface.current()
         #expect(!interfaces.isEmpty)

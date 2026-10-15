@@ -8,6 +8,8 @@ struct IPv4Address: Hashable, Comparable, Sendable, CustomStringConvertible {
         self.raw = raw
     }
 
+    static let loopback = IPv4Address(raw: 0x7F00_0001)
+
     init?(_ string: String) {
         let parts = string.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 4 else { return nil }

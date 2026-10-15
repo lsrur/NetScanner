@@ -30,13 +30,6 @@ final class TraceSession {
     private var task: Task<Void, Never>?
     private var runID = 0
 
-    func retarget(_ host: String) {
-        guard host != self.host else { return }
-        stop()
-        self.host = host
-        reset()
-    }
-
     func start() {
         let host = host.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else { return }

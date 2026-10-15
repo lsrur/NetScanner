@@ -9,7 +9,8 @@ final class AppModel {
     let portLists = PortListStore()
     let ports: PortScanModel
     let trace = TraceSession()
-    let lookup = LookupModel()
+    let dnsLookup = DNSLookupModel()
+    let whois = WhoisModel()
     let publicNetwork = PublicNetworkModel()
     var showInspector = true
     /// The host table's filter, typed in the toolbar.
@@ -18,15 +19,13 @@ final class AppModel {
     var searchFocusRequests = 0
     var inspectorTab = InspectorTab.info
 
-    /// Ping and port scan always target the selected row.
+    /// Ping and port scan always target the selected row; the network tools have their own windows.
     var selectedHostID: HostID? {
         didSet {
             guard oldValue != selectedHostID else { return }
             let target = selectedHostID?.address.description ?? ""
             ping.retarget(target)
             ports.retarget(target)
-            trace.retarget(target)
-            lookup.retarget(target)
         }
     }
 
@@ -52,6 +51,7 @@ struct NetScannerApp: App {
         }
         .defaultSize(width: 1280, height: 720)
         .commands {
+            NetworkToolCommands()
             CommandMenu("Scan") {
                 Button(model.scanner.isScanningAny ? "Stop Scan" : "Scan All Interfaces") {
                     if model.scanner.isScanningAny {
@@ -67,6 +67,8 @@ struct NetScannerApp: App {
                     .keyboardShortcut("f")
             }
         }
+
+        NetworkToolScenes(model: model)
     }
 }
 
@@ -74,6 +76,9 @@ struct ContentView: View {
     @Environment(AppModel.self) private var model
     @State private var isShowingScanSettings = false
     @State private var isExporting = false
+    #if DEBUG
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     var body: some View {
         @Bindable var model = model
@@ -117,6 +122,11 @@ struct ContentView: View {
                     .standaloneToolbarButton()
                 }
                 .standaloneToolbarItem()
+                // A Menu ignores the glass button style; the toolbar's shared background gives it
+                // the same capsule as the ▶ button.
+                ToolbarItem(placement: .navigation) {
+                    NetworkToolsMenu()
+                }
                 ToolbarItem(placement: .navigation) {
                     Button("Inspector", systemImage: "sidebar.right") { model.showInspector.toggle() }
                         .help(model.showInspector ? "Hide Inspector" : "Show Inspector")
@@ -150,6 +160,7 @@ struct ContentView: View {
             if let scene = environment["NETSCANNER_DEMO"] {
                 try? await Task.sleep(for: .milliseconds(300))
                 DemoData.load(scene, into: model)
+                if let tool = DemoData.tool(for: scene) { openWindow(id: tool.windowID) }
                 return
             }
             guard environment["NETSCANNER_AUTOSCAN"] == "1" else { return }

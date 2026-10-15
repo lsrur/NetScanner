@@ -5,10 +5,15 @@ struct TracePanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Picker("Max hops", selection: $session.maxHops) {
-                ForEach([15, 30, 64], id: \.self) { Text("\($0)").tag($0) }
+            HStack {
+                TextField("Host or IP", text: $session.host, prompt: Text(verbatim: "example.com"))
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { if !session.isRunning { session.start() } }
+                Picker("Max hops", selection: $session.maxHops) {
+                    ForEach([15, 30, 64], id: \.self) { Text("\($0)").tag($0) }
+                }
+                .fixedSize()
             }
-            .fixedSize()
             Button(action: toggle) {
                 Label(session.isRunning ? "Stop" : "Start Traceroute",
                       systemImage: session.isRunning ? "stop.fill" : "point.topleft.down.to.point.bottomright.curvepath")
@@ -16,6 +21,7 @@ struct TracePanel: View {
             }
             .controlSize(.large)
             .keyboardShortcut(.return, modifiers: .command)
+            .disabled(!session.isRunning && session.host.trimmingCharacters(in: .whitespaces).isEmpty)
 
             if let error = session.errorMessage {
                 Label(error, systemImage: "exclamationmark.triangle.fill")

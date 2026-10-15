@@ -56,14 +56,17 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 
 ![Open ports on a NAS, with service banners, typical uses and clickable http/https links](docs/screenshots/ports.png)
 
-### Traceroute
-- The route to the selected host (or any name or address), using the same unprivileged ICMP socket as ping: no root, no helper.
+### Network tools
+The toolbar's 🔧 button (also the **Tools** menu) opens three tools, each in its own window. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
+
+#### Traceroute
+- The route to any name or address, using the same unprivileged ICMP socket as ping: no root, no helper.
 - Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a configurable maximum of 15, 30 or 64 hops.
 
 ![Traceroute to example.com: each hop with its name, address and three round-trip times](docs/screenshots/trace.png)
 
-### DNS lookup and whois
-- **DNS:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
+#### DNS lookup and whois
+- **DNS Lookup:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
 - **Whois** for domains and IP addresses, starting at IANA and following referrals to the registry and the registrar.
 
 ![DNS records of example.com: A, AAAA, MX, NS, TXT and SOA](docs/screenshots/dns.png)
@@ -97,13 +100,18 @@ The first scan triggers macOS's **Local Network** permission prompt. Allow it, o
 ### The inspector (right panel)
 Toggle it with the sidebar button in the toolbar. With **no host selected**, it shows a scan summary: hosts found per interface or saved scan, the total, the default gateway and the DNS servers.
 
-With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and five tabs:
+With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and three tabs:
 
 - **Info:** everything detected about the host: Bonjour, NetBIOS and DNS names, all IPv6 addresses, MAC, vendor, latency, discovery source and interface.
 - **Ping:** pick a count and interval, then **Start Ping**.
-- **Trace:** pick the maximum number of hops, then **Start Traceroute**.
 - **Ports:** choose **TCP** or **UDP**. For TCP pick a port list (✏️ edits the lists) and a timeout, then **Scan Ports**. Hover a row to read the full banner and what the port is typically used for. Click an **http ↗ / https ↗** link to open the web interface, or double-click the row.
-- **DNS:** type a host, address or domain (it starts with the selected host), choose **DNS** and a record type, or **Whois**, then press **Look Up** (or ⌘↩).
+
+### Network tools
+Click 🔧 in the toolbar (or open the **Tools** menu) and choose **Traceroute…**, **DNS Lookup…** or **Whois…**. Each opens its own window and keeps its results until you run it again. Type a domain or IP and press Return (or ⌘↩).
+
+- **Traceroute:** optionally change the maximum number of hops, then **Start Traceroute** (the same button stops it).
+- **DNS Lookup:** pick a record type, or **All**. An IPv4 address is looked up as PTR.
+- **Whois:** domains and public IP addresses.
 
 ### Status bar
 Shows ISP, country flag and public IPs. Click ↻ to refresh them manually.

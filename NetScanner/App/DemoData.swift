@@ -30,12 +30,10 @@ enum DemoData {
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
         case "trace":
             model.selectedHostID = HostID(interface: "en0", address: nas)
-            model.inspectorTab = .trace
             model.trace.loadDemo(host: "example.com", destination: IPv4Address("203.0.113.80")!, hops: traceHops)
         case "dns":
             model.selectedHostID = HostID(interface: "en0", address: nas)
-            model.inspectorTab = .lookup
-            model.lookup.loadDemo(query: "example.com", records: dnsRecords)
+            model.dnsLookup.loadDemo(query: "example.com", records: dnsRecords)
         case "summary":
             model.selectedHostID = nil
         default:
@@ -45,6 +43,15 @@ enum DemoData {
 
         NSApp.windows.first { $0.isVisible && $0.frame.width > 500 }?
             .setFrame(NSRect(x: 80, y: 80, width: 1480, height: 860), display: true)
+    }
+
+    /// The tool window a scene shows, if any.
+    static func tool(for scene: String) -> NetworkTool? {
+        switch scene {
+        case "trace": .traceroute
+        case "dns": .dns
+        default: nil
+        }
     }
 
     private static let traceHops: [TraceSession.Hop] = [

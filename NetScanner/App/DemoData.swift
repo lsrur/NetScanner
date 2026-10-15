@@ -15,7 +15,8 @@ enum DemoData {
         state.progress = 1
         state.completedAt = .now
         state.hostCount = hosts.count
-        model.scanner.loadDemo(hosts: hosts, scans: [(target, state)])
+        state.gateway = IPv4Address("192.168.1.1")
+        model.scanner.loadDemo(hosts: hosts, scans: [(target, state)], dnsServers: ["192.168.1.1", "2001:db8:4a2c:100::1"])
 
         // Selecting retargets ping and ports, so select first and load their data afterwards.
         switch scene {
@@ -27,6 +28,8 @@ enum DemoData {
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .ports
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
+        case "summary":
+            model.selectedHostID = nil
         default:
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .info

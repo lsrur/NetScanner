@@ -35,6 +35,10 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
   - the **title of its web interface** (e.g. "Synology DiskStation")
   - the default gateway, vendor and names as fallbacks
 - **Your own names and comments** for each device, saved by MAC address, so they follow the device when DHCP hands it a new IP.
+- **Filter** the table as you type (⌘F) by IP, MAC, vendor, model, type, any name, comment or service.
+- **Choose your columns:** right-click the header to show or hide them; visibility, order and widths are remembered.
+- **Wake-on-LAN** from the context menu of any host with a known MAC.
+- The **default gateway** is tagged in the table, and the scan summary lists it together with the **DNS servers** in use.
 - Sortable table, **CSV export**, and copy actions for IP, IPv6, MAC and hostname.
 
 ### Ping
@@ -72,11 +76,13 @@ The first scan triggers macOS's **Local Network** permission prompt. Allow it, o
 
 ### The host table
 - Click a column header to sort.
-- Right-click a host to copy its IP, IPv6 addresses, MAC or hostname, or to edit its name and comment.
+- Type in **Filter hosts** (or press **⌘F**) to narrow the list; every word must match.
+- Right-click a column header to show or hide columns.
+- Right-click a host to wake it (Wake-on-LAN), copy its IP, IPv6 addresses, MAC or hostname, or edit its name and comment.
 - Custom names appear in bold in the **Hostname** column.
 
 ### The inspector (right panel)
-Toggle it with the sidebar button in the toolbar. With **no host selected**, it shows a scan summary: hosts found per interface or saved scan, and the total.
+Toggle it with the sidebar button in the toolbar. With **no host selected**, it shows a scan summary: hosts found per interface or saved scan, the total, the default gateway and the DNS servers.
 
 With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and three tabs:
 

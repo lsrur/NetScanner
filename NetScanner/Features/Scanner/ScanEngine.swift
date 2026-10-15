@@ -83,6 +83,7 @@ struct ScanState: Sendable {
     var notice: String?
     var completedAt: Date?
     var hostCount = 0
+    var gateway: IPv4Address?
     /// Nothing but ourselves answered: most likely Local Network access was denied.
     var foundNothing = false
 }
@@ -97,6 +98,8 @@ final class ScannerModel {
     private(set) var interfaces: [NetworkInterface] = []
     private(set) var hosts: [DiscoveredHost] = []
     private(set) var scans: [ScanTarget.ID: ScanState] = [:]
+    /// Resolvers in use, read when a scan starts.
+    private(set) var dnsServers: [String] = []
     /// Targets of the current/last run, in launch order.
     private var runOrder: [ScanTarget.ID] = []
     /// Named ranges from "Personalizar…", persisted. Interfaces are not stored: they come and go.
@@ -236,6 +239,7 @@ final class ScannerModel {
         let generation = generation
         hosts = []
         scans = [:]
+        dnsServers = DNSServers.current()
         let plans = selected.compactMap(plan(for:))
         runOrder = plans.map(\.target.id)
         return plans.map { plan in
@@ -269,6 +273,20 @@ final class ScannerModel {
     func host(_ id: HostID?) -> DiscoveredHost? {
         guard let id else { return nil }
         return hosts.first { $0.id == id }
+    }
+
+    // MARK: Wake-on-LAN
+
+    /// Sends a magic packet to the host's subnet broadcast and the limited broadcast.
+    /// Returns false when the host has no MAC or nothing could be sent.
+    @discardableResult
+    func wake(_ id: HostID) -> Bool {
+        guard let host = host(id), let mac = host.mac else { return false }
+        var targets = [IPv4Address(raw: .max)]
+        if let subnet = interface(named: host.interface)?.subnet {
+            targets.insert(subnet.broadcast, at: 0)
+        }
+        return WakeOnLAN.wake(mac, to: targets) > 0
     }
 
     // MARK: Annotations
@@ -388,6 +406,7 @@ final class ScannerModel {
         async let advertised = BonjourBrowser.discover(timeout: 3)
         async let upnpAnswers = SSDP.discover(interfaceAddress: interface.address, timeout: 2.5)
         let gateway = DefaultGateway.read()[name]
+        scans[id]?.gateway = gateway
 
         let addresses = hosts.filter { belongs($0) && $0.source != .local }.map(\.address)
         await withLimitedConcurrency(addresses, limit: 32) { address in
@@ -490,10 +509,11 @@ final class ScannerModel {
 #if DEBUG
 extension ScannerModel {
     /// Fills the table with fictional results (README screenshots, see DemoData).
-    func loadDemo(hosts: [DiscoveredHost], scans: [(ScanTarget, ScanState)]) {
+    func loadDemo(hosts: [DiscoveredHost], scans: [(ScanTarget, ScanState)], dnsServers: [String] = []) {
         stopAll()
         generation += 1
         self.hosts = hosts
+        self.dnsServers = dnsServers
         self.scans = Dictionary(uniqueKeysWithValues: scans.map { ($0.0.id, $0.1) })
         runOrder = scans.map(\.0.id)
     }

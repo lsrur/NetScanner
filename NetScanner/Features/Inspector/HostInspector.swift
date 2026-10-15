@@ -72,6 +72,23 @@ private struct ScanSummary: View {
                 }
                 .padding(.horizontal, 10)
             }
+            if !networkRows.isEmpty {
+                Text("Network")
+                    .font(.title3.weight(.semibold))
+                    .padding(.top, 8)
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                    ForEach(networkRows, id: \.title) { row in
+                        GridRow(alignment: .firstTextBaseline) {
+                            Text(row.title)
+                                .foregroundStyle(.secondary)
+                                .gridColumnAlignment(.trailing)
+                            Text(verbatim: row.value)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+                .font(.callout)
+            }
             Spacer()
             Label("Select a row in the table to see its details, ping it or scan its ports.",
                   systemImage: "cursorarrow.click")
@@ -80,6 +97,21 @@ private struct ScanSummary: View {
         }
         .padding()
         .inspectorPanelFrame()
+    }
+
+    /// Gateway per scanned interface (with its name when known) and the resolvers in use.
+    private var networkRows: [(title: String, value: String)] {
+        var rows: [(String, String)] = []
+        var seen = Set<IPv4Address>()
+        for scan in scanner.orderedScans {
+            guard let gateway = scan.state.gateway, seen.insert(gateway).inserted else { continue }
+            let name = scanner.hosts.first { $0.address == gateway && $0.interface == scan.state.interface }?.hostname
+            rows.append(("Gateway (\(scan.state.interface))", name.map { "\(gateway) — \($0)" } ?? gateway.description))
+        }
+        if !scanner.dnsServers.isEmpty {
+            rows.append(("DNS", scanner.dnsServers.joined(separator: "\n")))
+        }
+        return rows
     }
 
     private func row(_ state: ScanState) -> some View {

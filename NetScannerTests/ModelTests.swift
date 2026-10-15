@@ -100,6 +100,15 @@ struct ModelTests {
         #expect(!scanner.isScanningAny)
     }
 
+    @Test func scanRecordsDNSAndWakeNeedsAMAC() async {
+        let (scanner, _) = makeScanner(#function)
+        await runAll(scanner)
+        #expect(!scanner.dnsServers.isEmpty)
+        let peer = try! #require(scanner.hosts.first { $0.address.description == "127.0.0.1" })
+        #expect(peer.mac == nil)
+        #expect(!scanner.wake(peer.id))
+    }
+
     @Test func clearResultsEmptiesHostsButKeepsAnnotations() async {
         let (scanner, _) = makeScanner(#function)
         await runAll(scanner)

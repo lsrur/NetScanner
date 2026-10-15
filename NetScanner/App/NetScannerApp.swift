@@ -10,6 +10,8 @@ final class AppModel {
     let ports: PortScanModel
     let publicNetwork = PublicNetworkModel()
     var showInspector = true
+    /// Bumped by ⌘F; the host table focuses its search field when it changes.
+    var searchFocusRequests = 0
     var inspectorTab = InspectorTab.info
 
     /// Ping and port scan always target the selected row.
@@ -53,6 +55,10 @@ struct NetScannerApp: App {
                     }
                 }
                 .keyboardShortcut("r")
+            }
+            CommandGroup(after: .textEditing) {
+                Button("Find Hosts…") { model.searchFocusRequests += 1 }
+                    .keyboardShortcut("f")
             }
         }
     }

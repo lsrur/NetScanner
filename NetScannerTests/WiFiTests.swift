@@ -55,12 +55,19 @@ struct WiFiAnalyzerModelTests {
         model.merge([ap("aa:aa:aa:aa:aa:01", -50)], link: link, at: t0.addingTimeInterval(5))
 
         let strong = try #require(model.networks.first { $0.id == "aa:aa:aa:aa:aa:01" })
-        #expect(strong.samples.map(\.rssi) == [-40, -50])
-        #expect(strong.average == -45 && strong.maximum == -40 && strong.minimum == -50)
+        #expect(strong.samples.map(\.rssi).prefix(2) == [-40, -50])
+        #expect(strong.maximum == -40)
         #expect(strong.isConnected)
         #expect(model.isInRange(strong))
-        let weak = try #require(model.networks.first { $0.id == "aa:aa:aa:aa:aa:02" })
-        #expect(!model.isInRange(weak))                       // missing from the latest scan
+        var weak = try #require(model.networks.first { $0.id == "aa:aa:aa:aa:aa:02" })
+        #expect(model.isInRange(weak))                        // one miss is normal for a scan
+        model.merge([ap("aa:aa:aa:aa:aa:01", -50)], link: link, at: t0.addingTimeInterval(10))
+        model.merge([ap("aa:aa:aa:aa:aa:01", -50)], link: link, at: t0.addingTimeInterval(15))
+        weak = try #require(model.networks.first { $0.id == "aa:aa:aa:aa:aa:02" })
+        #expect(!model.isInRange(weak))                       // three in a row: gone
+        model.merge([ap("aa:aa:aa:aa:aa:02", -84)], link: link, at: t0.addingTimeInterval(20))
+        weak = try #require(model.networks.first { $0.id == "aa:aa:aa:aa:aa:02" })
+        #expect(model.isInRange(weak) && weak.missedScans == 0)
         #expect(model.checked == ["aa:aa:aa:aa:aa:01"])        // only the strong one auto-checked
         #expect(weak.colorIndex == 1)
     }

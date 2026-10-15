@@ -22,6 +22,8 @@ final class WiFiAnalyzerModel {
         /// Order of discovery; picks the network's color.
         let colorIndex: Int
         var isConnected = false
+        /// Consecutive real scans that didn't report it.
+        var missedScans = 0
 
         var ssidText: String { latest.ssid.map { $0.isEmpty ? "[Hidden SSID]" : $0 } ?? (latest.bssid == nil ? "—" : "[Hidden SSID]") }
         var bssidText: String { latest.bssid ?? "" }
@@ -60,6 +62,12 @@ final class WiFiAnalyzerModel {
     }
 
     static let maxSamples = 360
+    /// A single scan misses about a quarter of the networks around (short dwell per channel,
+    /// DFS channels), even strong ones; only this many misses in a row mean out of range.
+    static let missesBeforeOutOfRange = 3
+    /// macOS rate-limits scans and answers early ones from its cache, almost instantly and with
+    /// the previous values; those add nothing and would flatten the history.
+    static let cachedScanDuration: TimeInterval = 1
     /// Networks checked automatically when first found, if strong enough.
     static let autoCheckThreshold = -70
     static let autoCheckLimit = 8
@@ -84,10 +92,9 @@ final class WiFiAnalyzerModel {
 
     var visibleNetworks: [Network] { networks.filter { bandFilter.includes($0.latest.band) } }
 
-    /// Whether the network answered the latest scan.
+    /// Whether the network answered one of the last few scans.
     func isInRange(_ network: Network) -> Bool {
-        guard let lastScan else { return true }
-        return network.lastSeen >= lastScan
+        network.missedScans < Self.missesBeforeOutOfRange
     }
 
     func start() {
@@ -97,13 +104,19 @@ final class WiFiAnalyzerModel {
         task = Task {
             while !Task.isCancelled {
                 isScanning = true
+                let started = Date.now
                 let result = await Task.detached { Result { try WiFiScanner.scan() } }.value
                 isScanning = false
                 guard !Task.isCancelled else { break }
                 switch result {
                 case .success(let (observations, link)):
                     errorMessage = nil
-                    merge(observations, link: link, at: .now)
+                    let isCached = Date.now.timeIntervalSince(started) < Self.cachedScanDuration
+                    if isCached, lastScan != nil {
+                        self.link = link
+                    } else {
+                        merge(observations, link: link, at: .now)
+                    }
                 case .failure(let error):
                     errorMessage = error.localizedDescription
                 }
@@ -149,6 +162,7 @@ final class WiFiAnalyzerModel {
             if let index = networks.firstIndex(where: { $0.id == id }) {
                 networks[index].latest = observation
                 networks[index].lastSeen = date
+                networks[index].missedScans = 0
                 networks[index].samples.append(sample)
                 if networks[index].samples.count > Self.maxSamples {
                     networks[index].samples.removeFirst(networks[index].samples.count - Self.maxSamples)
@@ -160,6 +174,9 @@ final class WiFiAnalyzerModel {
                     checked.insert(id)
                 }
             }
+        }
+        for index in networks.indices where !seen.contains(networks[index].id) {
+            networks[index].missedScans += 1
         }
         for index in networks.indices {
             networks[index].isConnected = link?.bssid != nil && networks[index].latest.bssid == link?.bssid

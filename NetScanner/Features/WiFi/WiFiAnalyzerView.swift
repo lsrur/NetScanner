@@ -48,7 +48,8 @@ struct WiFiAnalyzerView: View {
                     .frame(minWidth: 60)
             }
             Picker("Every", selection: $model.interval) {
-                ForEach([2.0, 5, 10, 30], id: \.self) { Text("\(Int($0)) s").tag($0) }
+                // macOS answers more frequent scans from its cache.
+                ForEach([5.0, 10, 30, 60], id: \.self) { Text("\(Int($0)) s").tag($0) }
             }
             .fixedSize()
             Picker("Band", selection: $model.bandFilter) {

@@ -7,8 +7,6 @@ struct HostTableView: View {
     let scanner: ScannerModel
     @Binding var selection: HostID?
     @State private var sortOrder = [KeyPathComparator(\DiscoveredHost.address)]
-    @State private var query = ""
-    @FocusState private var isSearchFocused: Bool
     /// Visibility, order and widths of the columns; changed from the header's context menu.
     @State private var columns = Persisted.load(TableColumnCustomization<DiscoveredHost>.self,
                                                 forKey: Self.columnsKey, from: .standard) ?? TableColumnCustomization()
@@ -30,16 +28,13 @@ struct HostTableView: View {
             table
         }
         .animation(.default, value: notice)
-        .searchable(text: $query, placement: .toolbar, prompt: "Filter hosts")
-        .searchFocused($isSearchFocused)
-        .onChange(of: app.searchFocusRequests) { isSearchFocused = true }
         // Counts and ranges live in the inspector's scan summary; the toolbar only holds actions.
         .navigationTitle("NetScanner")
         .toolbar(removing: .title)
     }
 
     private var visibleHosts: [DiscoveredHost] {
-        scanner.hosts.filter { HostFilter.matches($0, query: query) }.sorted(using: sortOrder)
+        scanner.hosts.filter { HostFilter.matches($0, query: app.hostQuery) }.sorted(using: sortOrder)
     }
 
     private var columnsBinding: Binding<TableColumnCustomization<DiscoveredHost>> {
@@ -91,7 +86,7 @@ struct HostTableView: View {
                 ContentUnavailableView("No Results", systemImage: "network",
                                        description: Text("Press ▶ in the toolbar (⌘R)."))
             } else if visibleHosts.isEmpty {
-                ContentUnavailableView.search(text: query)
+                ContentUnavailableView.search(text: app.hostQuery)
             }
         }
     }

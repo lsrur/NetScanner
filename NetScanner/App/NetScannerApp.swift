@@ -10,7 +10,9 @@ final class AppModel {
     let ports: PortScanModel
     let publicNetwork = PublicNetworkModel()
     var showInspector = true
-    /// Bumped by ⌘F; the host table focuses its search field when it changes.
+    /// The host table's filter, typed in the toolbar.
+    var hostQuery = ""
+    /// Bumped by ⌘F; the toolbar's filter field takes focus when it changes.
     var searchFocusRequests = 0
     var inspectorTab = InspectorTab.info
 
@@ -117,6 +119,10 @@ struct ContentView: View {
                         .standaloneToolbarButton()
                 }
                 .standaloneToolbarItem()
+                ToolbarItem(placement: .navigation) {
+                    HostFilterField(model: model)
+                }
+                .standaloneToolbarItem()
             }
 
             StatusBar(model: model.publicNetwork, scanner: model.scanner)
@@ -199,6 +205,51 @@ private struct ScanButton: View {
         .help(scanner.isScanningAny ? "Stop scanning" : "Scan all interfaces (⌘R)")
         // A new identity whenever the menu's data changes, so AppKit never shows a stale menu.
         .id([AnyHashable(interfaces), AnyHashable(savedScans)])
+    }
+}
+
+/// The host filter as a toolbar capsule next to the buttons (⌘F focuses it, Esc clears it).
+private struct HostFilterField: View {
+    @Bindable var model: AppModel
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Filter hosts", text: $model.hostQuery)
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .onExitCommand {
+                    model.hostQuery = ""
+                    isFocused = false
+                }
+            if !model.hostQuery.isEmpty {
+                Button("Clear filter", systemImage: "xmark.circle.fill") { model.hostQuery = "" }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(width: 220, height: toolbarControlHeight)
+        .toolbarCapsule()
+        .help("Filter hosts by IP, MAC, vendor, model, type, name or comment (⌘F)")
+        .onChange(of: model.searchFocusRequests) { isFocused = true }
+    }
+}
+
+/// Height of the glass toolbar buttons (`.extraLarge` circles), so the filter lines up with them.
+private let toolbarControlHeight: CGFloat = 36
+
+private extension View {
+    @ViewBuilder
+    func toolbarCapsule() -> some View {
+        if #available(macOS 26, *) {
+            glassEffect(.regular, in: .capsule)
+        } else {
+            background(.quaternary, in: .capsule)
+        }
     }
 }
 

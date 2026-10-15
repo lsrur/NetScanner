@@ -70,6 +70,13 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 
 ![The DNS Lookup tab: A, AAAA, MX, NS, TXT and SOA records of example.com](docs/screenshots/dns.png)
 
+### Wi-Fi analyzer
+**Tools → Wi-Fi Analyzer…** scans the nearby Wi-Fi networks every few seconds while its window is open. For each access point (BSSID): SSID, channel, channel width, band, security, vendor, supported 802.11 modes, a signal meter, current/average/max/min signal, noise and when it was last seen, plus a sparkline of its signal. Check networks to plot their signal over time in the chart above the table; networks that stopped answering fade out. Filter by band (2.4, 5 or 6 GHz).
+
+macOS only reveals network names and BSSIDs to apps with **Location** access, so the analyzer asks for it the first time. NetScanner doesn't read or store your location.
+
+![Wi-Fi Analyzer: signal chart of the checked networks above a table of nearby access points](docs/screenshots/wifi.png)
+
 ### Internet connection
 **Tools → Internet Connection…** shows your **ISP**, its **AS number**, your **public IPv4 and IPv6** addresses and their **location**, refreshed automatically when your network changes. It also runs a **speed test**: download and upload capacity, idle latency and responsiveness under load, measured by macOS's built-in `networkQuality` against Apple's servers.
 
@@ -117,6 +124,9 @@ Open **Tools → Network Tools…**, or click 🔧 in the toolbar and choose it.
 
 The window keeps the last results until you run it again.
 
+### Wi-Fi analyzer
+Open **Tools → Wi-Fi Analyzer…** (or 🔧 → **Wi-Fi Analyzer…**) and allow Location access when asked (or later in System Settings → Privacy & Security → Location Services). Scanning starts with the window and stops when you close it; **Pause** stops it earlier, **Every** sets the interval and the 🗑 button forgets the history. Check a row to chart it; click a column header to sort, or right-click it to show or hide columns.
+
 ### Internet connection
 Open **Tools → Internet Connection…** (or 🔧 → **Internet Connection…**). Click ↻ to look up the public addresses again, and **Run Speed Test** to measure the connection (about 20 seconds; **Stop** cancels it).
 
@@ -127,6 +137,7 @@ Appears at the bottom only while a scan runs (progress and hosts found) or when 
 
 - Scanning, pinging and port scanning stay on your local network, unless you point a tool at an outside address yourself.
 - The only automatic external request is to [ipinfo.io](https://ipinfo.io), for your public IP, ISP and location in the Internet Connection window.
+- The Wi-Fi analyzer needs Location access only because macOS hides Wi-Fi names and BSSIDs without it; the app never requests your coordinates.
 - The speed test runs only when you press **Run Speed Test**; macOS's `networkQuality` talks to Apple's measurement servers.
 - DNS lookups go to the DNS servers your Mac already uses; whois queries go to whois.iana.org and the registry/registrar servers it refers to, only when you press **Whois**.
 - Saved data stays on your Mac, in the app's sandbox container: known devices (names, comments, first/last seen, IP history) in a SwiftData store, settings (saved ranges, port lists, columns) in its preferences.
@@ -180,7 +191,7 @@ scripts/update-services.sh   # service names from /etc/services
 ```
 
 Debug builds also accept some environment variables, handy for screenshots: `NETSCANNER_AUTOSCAN=1` scans all interfaces on launch, `NETSCANNER_SELECT=<ip>` selects that host when the scan ends, and `NETSCANNER_SORT=firstSeen` starts with the newest devices first.
-The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|history|moved|new|summary|internet|tools|netping|trace|dns|whois`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
+The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|wifi|wifi-live|history|moved|new|summary|internet|tools|netping|trace|dns|whois`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
 
 ```sh
 NETSCANNER_AUTOSCAN=1 build/Build/Products/Debug/NetScanner.app/Contents/MacOS/NetScanner

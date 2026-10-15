@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|internet|tools|netping|trace|dns|whois|new|moved|history|summary`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|wifi|wifi-live|internet|tools|netping|trace|dns|whois|new|moved|history|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
@@ -29,6 +29,11 @@ enum DemoData {
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .ports
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
+        case "wifi-live":
+            break  // only opens the window: real scans
+        case "wifi":
+            model.wifi.loadDemo(wifiScans, link: WiFiLink(bssid: "50:c7:bf:3a:91:05", channel: 36, rssi: -48, noise: -92,
+                                                           transmitRate: 866))
         case "internet":
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.speedTest.loadDemo(SpeedTestResult(download: 287_400_000, upload: 41_800_000, idleLatency: 18,
@@ -88,6 +93,38 @@ enum DemoData {
         DNSRecord(type: "TXT", value: "\"v=spf1 mx -all\"", ttl: 3600),
         DNSRecord(type: "SOA", value: "ns1.example.net. hostmaster.example.com. serial 2026101501 refresh 7200 retry 3600 expire 1209600 minimum 300", ttl: 3600),
     ]
+
+    /// Twelve minutes of scans every 10 s; a neighbor's network fades out halfway.
+    private static var wifiScans: [(Date, [WiFiObservation])] {
+        func ap(_ ssid: String?, _ bssid: String, _ channel: Int, _ band: WiFiBand, _ width: Int, _ security: String,
+                _ modes: String, _ rssi: Double, _ noise: Int) -> (WiFiObservation, Double) {
+            (WiFiObservation(ssid: ssid, bssid: bssid, rssi: Int(rssi), noise: noise, channel: channel, band: band,
+                             width: width, security: security, modes: modes), rssi)
+        }
+        let aps = [
+            ap("Home-5G", "50:c7:bf:3a:91:05", 36, .ghz5, 80, "WPA2/WPA3 Personal", "a/n/ac/ax", -48, -92),
+            ap("Home", "50:c7:bf:3a:91:02", 6, .ghz2, 20, "WPA2/WPA3 Personal", "b/g/n/ax", -55, -90),
+            ap("Home-6G", "50:c7:bf:3a:91:06", 37, .ghz6, 160, "WPA3 Personal", "ax", -63, -95),
+            ap("Neighbor-2.4", "a4:91:b1:22:10:7c", 1, .ghz2, 20, "WPA2 Personal", "b/g/n", -71, -90),
+            ap("Neighbor-5", "a4:91:b1:22:10:7d", 44, .ghz5, 80, "WPA2 Personal", "a/n/ac", -78, -92),
+            ap(nil, "ce:91:b1:22:10:7e", 44, .ghz5, 80, "WPA2 Personal", "a/n/ac", -80, -92),
+            ap("CoffeeShop Guest", "3c:a6:2f:41:08:aa", 11, .ghz2, 20, "Open", "b/g/n", -84, -91),
+            ap("Printer-Direct", "b0:45:02:7e:61:19", 11, .ghz2, 20, "WPA2 Personal", "b/g/n", -67, -91),
+            ap("Office", "7c:ff:4d:90:12:30", 149, .ghz5, 40, "WPA2 Enterprise", "a/n/ac", -86, -93),
+        ]
+        let start = Date.now.addingTimeInterval(-720)
+        return (0..<72).map { step in
+            let date = start.addingTimeInterval(Double(step) * 10)
+            let observations = aps.enumerated().compactMap { index, entry -> WiFiObservation? in
+                if index == 6, step > 36 { return nil }
+                var observation = entry.0
+                let wobble = sin(Double(step + index * 7) / 4) * 3 + sin(Double(step * (index + 2)) / 9) * 2
+                observation.rssi = Int((entry.1 + wobble).rounded())
+                return observation
+            }
+            return (date, observations)
+        }
+    }
 
     private static let whoisAnswers: [(server: String, text: String)] = [
         ("whois.iana.org", """

@@ -11,6 +11,7 @@ final class AppModel {
     let tools = NetworkToolsModel()
     let publicNetwork = PublicNetworkModel()
     let speedTest = SpeedTestModel()
+    let wifi = WiFiAnalyzerModel()
     var showInspector = true
     /// The host table's filter, typed in the toolbar.
     var hostQuery = ""
@@ -77,6 +78,11 @@ struct NetScannerApp: App {
             NetworkToolsView(model: model.tools)
         }
         .defaultSize(width: 640, height: 640)
+
+        Window("Wi-Fi Analyzer", id: wifiAnalyzerWindowID) {
+            WiFiAnalyzerView(model: model.wifi)
+        }
+        .defaultSize(width: 1440, height: 800)
 
         Window("Internet Connection", id: internetConnectionWindowID) {
             InternetConnectionView(publicNetwork: model.publicNetwork, speedTest: model.speedTest)
@@ -176,6 +182,7 @@ struct ContentView: View {
                 DemoData.load(scene, into: model)
                 if DemoData.opensNetworkTools(scene) { openWindow(id: networkToolsWindowID) }
                 if DemoData.opensInternetConnection(scene) { openWindow(id: internetConnectionWindowID) }
+                if scene.hasPrefix("wifi") { openWindow(id: wifiAnalyzerWindowID) }
                 return
             }
             guard environment["NETSCANNER_AUTOSCAN"] == "1" else { return }

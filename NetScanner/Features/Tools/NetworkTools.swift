@@ -229,9 +229,9 @@ struct ToolsMenuItems: View {
         Button("Internet Connection…", systemImage: "globe") {
             openWindow(id: internetConnectionWindowID)
         }
-        Button("Wi-Fi Analyzer…", systemImage: "wifi") {}
-            .disabled(true)
-            .help("Coming soon")
+        Button("Wi-Fi Analyzer…", systemImage: "wifi") {
+            openWindow(id: wifiAnalyzerWindowID)
+        }
     }
 }
 
@@ -250,6 +250,6 @@ struct ToolsToolbarMenu: View {
             ToolsMenuItems()
         }
         .menuIndicator(.hidden)
-        .help("Network tools, Internet connection and speed test")
+        .help("Network tools, Internet connection and Wi-Fi analyzer")
     }
 }

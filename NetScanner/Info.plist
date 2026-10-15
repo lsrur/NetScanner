@@ -68,5 +68,9 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>NetScanner needs local network access to discover devices, ping them and scan their ports.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>The Wi-Fi Analyzer needs Location access because macOS only reveals the names and BSSIDs of nearby Wi-Fi networks to apps that have it. NetScanner doesn't use your location.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>The Wi-Fi Analyzer needs Location access because macOS only reveals the names and BSSIDs of nearby Wi-Fi networks to apps that have it. NetScanner doesn't use your location.</string>
 </dict>
 </plist>

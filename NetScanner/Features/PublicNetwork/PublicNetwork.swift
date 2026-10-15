@@ -83,6 +83,8 @@ final class PublicNetworkModel {
     private(set) var pathChanges = 0
     private let monitor = NWPathMonitor()
     private var task: Task<Void, Never>?
+    /// Set by the debug demo mode so real lookups don't overwrite fictional data.
+    private var isFrozen = false
 
     /// Refreshes on launch and whenever the network path changes (Wi-Fi switch, VPN, cable).
     init() {
@@ -94,6 +96,7 @@ final class PublicNetworkModel {
     }
 
     func refresh() {
+        guard !isFrozen else { return }
         task?.cancel()
         isLoading = true
         task = Task {
@@ -107,6 +110,7 @@ final class PublicNetworkModel {
     }
 
     private func pathChanged(isConnected: Bool) {
+        guard !isFrozen else { return }
         pathChanges += 1
         if isConnected {
             refresh()
@@ -118,3 +122,16 @@ final class PublicNetworkModel {
         }
     }
 }
+
+#if DEBUG
+extension PublicNetworkModel {
+    func loadDemo(_ info: PublicNetworkInfo) {
+        task?.cancel()
+        isFrozen = true
+        self.info = info
+        isLoading = false
+        isOffline = false
+        updatedAt = .now
+    }
+}
+#endif

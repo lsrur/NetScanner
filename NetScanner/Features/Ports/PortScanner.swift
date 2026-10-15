@@ -239,3 +239,20 @@ final class PortScanModel {
         elapsed = ContinuousClock.now - started
     }
 }
+
+#if DEBUG
+extension PortScanModel {
+    /// A finished port scan with the given results, for screenshots.
+    func loadDemo(address: IPv4Address, listName: String, results: [Result], elapsed: Duration) {
+        stop()
+        host = address.description
+        resolvedAddress = address
+        selectedListID = lists.lists.first { $0.name == listName }?.id ?? selectedListID
+        totalCount = ports()?.count ?? results.count
+        scannedCount = totalCount
+        self.results = results.sorted { $0.port < $1.port }
+        self.elapsed = elapsed
+        errorMessage = nil
+    }
+}
+#endif

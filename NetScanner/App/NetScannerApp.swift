@@ -131,6 +131,11 @@ struct ContentView: View {
         // optionally NETSCANNER_SELECT=<ip> to select that host when the scan ends.
         .task {
             let environment = ProcessInfo.processInfo.environment
+            if let scene = environment["NETSCANNER_DEMO"] {
+                try? await Task.sleep(for: .milliseconds(300))
+                DemoData.load(scene, into: model)
+                return
+            }
             guard environment["NETSCANNER_AUTOSCAN"] == "1" else { return }
             for task in model.scanner.startAllInterfaces() { await task.value }
             if let ip = environment["NETSCANNER_SELECT"] {

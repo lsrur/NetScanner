@@ -417,3 +417,16 @@ final class ScannerModel {
         }
     }
 }
+
+#if DEBUG
+extension ScannerModel {
+    /// Fills the table with fictional results (README screenshots, see DemoData).
+    func loadDemo(hosts: [DiscoveredHost], scans: [(ScanTarget, ScanState)]) {
+        stopAll()
+        generation += 1
+        self.hosts = hosts
+        self.scans = Dictionary(uniqueKeysWithValues: scans.map { ($0.0.id, $0.1) })
+        runOrder = scans.map(\.0.id)
+    }
+}
+#endif

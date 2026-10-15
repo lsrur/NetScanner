@@ -98,3 +98,20 @@ final class PingSession {
         }
     }
 }
+
+#if DEBUG
+extension PingSession {
+    /// A finished session with the given round-trip times (nil = lost), for screenshots.
+    func loadDemo(address: IPv4Address, rtts: [Double?]) {
+        stop()
+        host = address.description
+        resolvedAddress = address
+        count = rtts.count
+        stats = PingStats()
+        samples = rtts.enumerated().map { index, rtt in
+            stats.record(rtt)
+            return Sample(id: index, outcome: rtt.map(PingOutcome.reply) ?? .timeout)
+        }
+    }
+}
+#endif

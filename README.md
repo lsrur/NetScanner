@@ -17,6 +17,8 @@ NetScanner sweeps the subnets of your Mac's network interfaces and lists every d
 
 It runs entirely inside the macOS App Sandbox and needs no administrator privileges or helper tools.
 
+![Hosts found on a home network, with the inspector showing the details of a NAS](docs/screenshots/hosts.png)
+
 ## Features
 
 ### Host discovery
@@ -35,10 +37,14 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 - Live **aggregate statistics**: sent, received, **packet loss**, **min / avg / max**, **standard deviation** and **jitter**.
 - RTT chart and a per-packet log.
 
+![Pinging a TV: loss, min/avg/max, standard deviation, jitter and the RTT chart](docs/screenshots/ping.png)
+
 ### Port scanning
 - Editable **port lists**. It ships with *Top 100* (nmap's most common ports), *Home/IoT* (NAS, media servers, cameras, home automation, TVs, printers, Apple devices), *1–1024* and *1–65535*, and you can add your own.
 - For each open port: the service name, a plain-English **typical use** description and an open/closed indicator.
 - **Automatic web detection.** Open ports that answer HTTP or HTTPS (including self-signed certificates) become **clickable links** that open in your browser, even on non-standard ports such as 8080, 8123 or 3000.
+
+![Open ports on a NAS, with typical uses and clickable http/https links](docs/screenshots/ports.png)
 
 ### Public network info
 A status bar shows your **ISP**, **country**, and **public IPv4 and IPv6** addresses. It refreshes automatically when your network changes. While a scan runs, it shows the scan progress instead.
@@ -127,6 +133,7 @@ scripts/update-services.sh   # service names from /etc/services
 ```
 
 Debug builds also accept two environment variables, handy for screenshots: `NETSCANNER_AUTOSCAN=1` scans all interfaces on launch, and `NETSCANNER_SELECT=<ip>` selects that host when the scan ends.
+The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
 
 ```sh
 NETSCANNER_AUTOSCAN=1 build/Build/Products/Debug/NetScanner.app/Contents/MacOS/NetScanner

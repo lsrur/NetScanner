@@ -15,6 +15,8 @@
 
 NetScanner sweeps the subnets of your Mac's network interfaces and lists every device that answers: its IPv4 and IPv6 addresses, MAC address, vendor, name and latency. Select a host to see everything that was detected about it, give it your own name and a comment, run a continuous ping with live statistics, or scan its TCP ports, with web interfaces turned into clickable links.
 
+Everything lives in one window: the sidebar switches between **LAN Scan**, **Wi-Fi Analyzer**, **Internet Connection** and **Network Tools**.
+
 It runs entirely inside the macOS App Sandbox and needs no administrator privileges or helper tools.
 
 ![Hosts found on a home network, with the inspector showing the details of a NAS](docs/screenshots/hosts.png)
@@ -59,19 +61,19 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 ![Open ports on a NAS, with service banners, typical uses and clickable http/https links](docs/screenshots/ports.png)
 
 ### Network tools
-**Tools → Network Tools…** (also behind the toolbar's 🔧 button) opens a window where you type a destination, check the tools to run and press **Run**. They run one after the other, each with its results in its own tab. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
+The **Network Tools** section takes a destination, check the tools to run and press **Run**. They run one after the other, each with its results in its own tab. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
 
 - **Ping:** 3 to 50 echo requests, one per second, with the same statistics, chart and log as the inspector's Ping tab.
 - **Traceroute:** the route to any name or address, using the same unprivileged ICMP socket as ping (no root, no helper). Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a maximum of 15, 30 or 64 hops.
 - **DNS Lookup:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
 - **Whois:** domains and public IP addresses, starting at IANA and following referrals to the registry and the registrar.
 
-![Network Tools window: traceroute to example.com, each hop with its name, address and three round-trip times](docs/screenshots/trace.png)
+![Network Tools: traceroute to example.com, each hop with its name, address and three round-trip times](docs/screenshots/trace.png)
 
 ![The DNS Lookup tab: A, AAAA, MX, NS, TXT and SOA records of example.com](docs/screenshots/dns.png)
 
 ### Wi-Fi analyzer
-**Tools → Wi-Fi Analyzer…** scans the nearby Wi-Fi networks every few seconds while its window is open. For each access point (BSSID): SSID, channel, channel width, band, security, vendor, supported 802.11 modes, a signal meter, current/average/max/min signal, noise and when it was last seen, plus a sparkline of its signal. The chart above the table has two tabs: **Signal over Time** plots the checked networks, and **Channels** draws every network in range as an arch over the channels it occupies (20–160 MHz, bonded blocks centered where they really are), as tall as its signal, so crowded channels stand out. Networks that stopped answering fade out. Filter by band (2.4, 5 or 6 GHz).
+The **Wi-Fi Analyzer** section scans the nearby Wi-Fi networks every few seconds while it's shown. For each access point (BSSID): SSID, channel, channel width, band, security, vendor, supported 802.11 modes, a signal meter, current/average/max/min signal, noise and when it was last seen, plus a sparkline of its signal. The chart above the table has two tabs: **Signal over Time** plots the checked networks, and **Channels** draws every network in range as an arch over the channels it occupies (20–160 MHz, bonded blocks centered where they really are), as tall as its signal, so crowded channels stand out. Networks that stopped answering fade out. Filter by band (2.4, 5 or 6 GHz).
 
 macOS only reveals network names and BSSIDs to apps with **Location** access, so the analyzer asks for it the first time. NetScanner doesn't read or store your location.
 
@@ -80,11 +82,13 @@ macOS only reveals network names and BSSIDs to apps with **Location** access, so
 ![Wi-Fi Analyzer channels tab: each 2.4 GHz network as an arch over its channels](docs/screenshots/wifi-channels.png)
 
 ### Internet connection
-**Tools → Internet Connection…** shows your **ISP**, its **AS number**, your **public IPv4 and IPv6** addresses and their **location**, refreshed automatically when your network changes. It also runs a **speed test**: download and upload capacity, idle latency and responsiveness under load, measured by macOS's built-in `networkQuality` against Apple's servers.
+The **Internet Connection** section shows your **ISP**, its **AS number**, your **public IPv4 and IPv6** addresses and their **location**, refreshed automatically when your network changes. It also runs a **speed test**: download and upload capacity, idle latency and responsiveness under load, measured by macOS's built-in `networkQuality` against Apple's servers.
 
-![Internet Connection window: ISP, ASN, public addresses, location and speed test results](docs/screenshots/internet.png)
+![Internet Connection: ISP, ASN, public addresses, location and speed test results](docs/screenshots/internet.png)
 
 ## Using NetScanner
+
+Pick a section in the sidebar, or press **⌘1** LAN Scan, **⌘2** Wi-Fi Analyzer, **⌘3** Internet Connection, **⌘4** Network Tools (also in the **View** menu). Scan commands (⌘R, ⌘F, the **Scan** menu) bring LAN Scan forward. The LAN Scan toolbar holds the scan controls below.
 
 ### Scanning
 | Action | How |
@@ -108,7 +112,7 @@ The first scan triggers macOS's **Local Network** permission prompt. Allow it, o
 - Custom names appear in bold in the **Hostname** column.
 
 ### The inspector (right panel)
-Toggle it with the sidebar button in the toolbar. With **no host selected**, it shows a scan summary: hosts found per interface or saved scan, the total, the default gateway and the DNS servers.
+Toggle it with the inspector button (▯▮) in the toolbar. With **no host selected**, it shows a scan summary: hosts found per interface or saved scan, the total, the default gateway and the DNS servers.
 
 With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and four tabs:
 
@@ -118,19 +122,19 @@ With a host selected, the top shows its IP plus editable **Name** and **Comment*
 - **History:** every IP address the device has used (followed by its MAC), with when each was first and last seen. The current one is tagged **Current**, and the one it just left **Previous**.
 
 ### Network tools
-Open **Tools → Network Tools…**, or click 🔧 in the toolbar and choose it.
+Select **Network Tools** in the sidebar (⌘4).
 
 1. Type a domain or IP address in **Destination**.
 2. Check **Ping** (pick how many), **Traceroute** (pick the maximum hops), **DNS Lookup** (pick a record type, or **All**) and/or **Whois**.
 3. Press **Run**, Return or ⌘↩. The tools run in that order; each tab shows **…** while its tool runs and **✓** when it's done. **Stop** cancels the rest.
 
-The window keeps the last results until you run it again.
+The section keeps the last results until you run it again, even while you use the others.
 
 ### Wi-Fi analyzer
-Open **Tools → Wi-Fi Analyzer…** (or 🔧 → **Wi-Fi Analyzer…**) and allow Location access when asked (or later in System Settings → Privacy & Security → Location Services). Scanning starts with the window and stops when you close it; **Pause** stops it earlier, **Every** sets the interval and the 🗑 button forgets the history. Switch the chart between **Signal over Time** and **Channels** (pick the band there when the filter is **All**). Check a row to chart it; click a column header to sort, or right-click it to show or hide columns.
+Select **Wi-Fi Analyzer** in the sidebar (⌘2) and allow Location access when asked (or later in System Settings → Privacy & Security → Location Services). Scanning runs while the section is shown and stops when you switch away; **Pause** stops it earlier, **Every** sets the interval and the 🗑 button forgets the history. Switch the chart between **Signal over Time** and **Channels** (pick the band there when the filter is **All**). Check a row to chart it; click a column header to sort, or right-click it to show or hide columns.
 
 ### Internet connection
-Open **Tools → Internet Connection…** (or 🔧 → **Internet Connection…**). Click ↻ to look up the public addresses again, and **Run Speed Test** to measure the connection (about 20 seconds; **Stop** cancels it).
+Select **Internet Connection** in the sidebar (⌘3). Click ↻ to look up the public addresses again, and **Run Speed Test** to measure the connection (about 20 seconds; **Stop** cancels it).
 
 ### Status bar
 Appears at the bottom only while a scan runs (progress and hosts found) or when there's no Internet connection.
@@ -138,7 +142,7 @@ Appears at the bottom only while a scan runs (progress and hosts found) or when 
 ## Privacy
 
 - Scanning, pinging and port scanning stay on your local network, unless you point a tool at an outside address yourself.
-- The only automatic external request is to [ipinfo.io](https://ipinfo.io), for your public IP, ISP and location in the Internet Connection window.
+- The only automatic external request is to [ipinfo.io](https://ipinfo.io), for your public IP, ISP and location in the Internet Connection section.
 - The Wi-Fi analyzer needs Location access only because macOS hides Wi-Fi names and BSSIDs without it; the app never requests your coordinates.
 - The speed test runs only when you press **Run Speed Test**; macOS's `networkQuality` talks to Apple's measurement servers.
 - DNS lookups go to the DNS servers your Mac already uses; whois queries go to whois.iana.org and the registry/registrar servers it refers to, only when you press **Whois**.

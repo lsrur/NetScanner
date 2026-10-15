@@ -2,7 +2,7 @@ import CoreLocation
 import Foundation
 import Observation
 
-/// Tools → Wi-Fi Analyzer: scans every few seconds while the window is open and keeps each
+/// The Wi-Fi Analyzer section: scans every few seconds while it's shown and keeps each
 /// access point's signal history for the session.
 @MainActor
 @Observable

@@ -105,8 +105,6 @@ extension NetworkToolsModel {
 }
 #endif
 
-let networkToolsWindowID = "network-tools"
-
 /// Minimum size of the Network Tools window.
 let toolWindowMinSize = CGSize(width: 520, height: 440)
 
@@ -215,41 +213,5 @@ struct NetworkToolsView: View {
         case .running: tool.title + " …"
         case .done: tool.title + " ✓"
         }
-    }
-}
-
-/// The Tools menu: in the menu bar and behind the toolbar's 🔧 button.
-struct ToolsMenuItems: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Button("Network Tools…", systemImage: "point.3.connected.trianglepath.dotted") {
-            openWindow(id: networkToolsWindowID)
-        }
-        Button("Internet Connection…", systemImage: "globe") {
-            openWindow(id: internetConnectionWindowID)
-        }
-        Button("Wi-Fi Analyzer…", systemImage: "wifi") {
-            openWindow(id: wifiAnalyzerWindowID)
-        }
-    }
-}
-
-struct ToolsCommands: Commands {
-    var body: some Commands {
-        CommandMenu("Tools") {
-            ToolsMenuItems()
-        }
-    }
-}
-
-/// Toolbar: 🔧 drops down the Tools menu.
-struct ToolsToolbarMenu: View {
-    var body: some View {
-        Menu("Tools", systemImage: "wrench.and.screwdriver") {
-            ToolsMenuItems()
-        }
-        .menuIndicator(.hidden)
-        .help("Network tools, Internet connection and Wi-Fi analyzer")
     }
 }

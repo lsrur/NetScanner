@@ -1,8 +1,6 @@
 import SwiftUI
 
-let internetConnectionWindowID = "internet-connection"
-
-/// Tools → Internet Connection…: who your ISP is, your public addresses, and a speed test.
+/// The Internet Connection section: who your ISP is, your public addresses, and a speed test.
 struct InternetConnectionView: View {
     let publicNetwork: PublicNetworkModel
     let speedTest: SpeedTestModel

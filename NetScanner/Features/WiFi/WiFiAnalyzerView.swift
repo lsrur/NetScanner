@@ -2,8 +2,6 @@ import AppKit
 import Charts
 import SwiftUI
 
-let wifiAnalyzerWindowID = "wifi-analyzer"
-
 struct WiFiAnalyzerView: View {
     @Bindable var model: WiFiAnalyzerModel
     @State private var sortOrder = [KeyPathComparator(\WiFiAnalyzerModel.Network.rssi, order: .reverse)]

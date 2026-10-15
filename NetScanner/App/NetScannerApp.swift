@@ -20,8 +20,12 @@ final class AppModel {
     var inspectorTab = InspectorTab.info
     /// The saved-scans dialog; opened from the ⌄ menu or the Scan menu.
     var isShowingScanSettings = false
+    /// The sidebar selection, remembered across launches.
+    var section = AppSection(rawValue: UserDefaults.standard.string(forKey: AppSection.storageKey) ?? "") ?? .lanScan {
+        didSet { UserDefaults.standard.set(section.rawValue, forKey: AppSection.storageKey) }
+    }
 
-    /// Ping and port scan always target the selected row; the network tools have their own windows.
+    /// Ping and port scan always target the selected row; Network Tools has its own destination.
     var selectedHostID: HostID? {
         didSet {
             guard oldValue != selectedHostID else { return }
@@ -51,11 +55,13 @@ struct NetScannerApp: App {
             ContentView()
                 .environment(model)
         }
-        .defaultSize(width: 1280, height: 720)
+        .defaultSize(width: 1440, height: 820)
         .commands {
-            ToolsCommands()
+            SectionCommands(model: model)
+            // Scanning commands bring the LAN Scan section forward.
             CommandMenu("Scan") {
                 Button(model.scanner.isScanningAny ? "Stop Scan" : "Scan All Interfaces") {
+                    model.section = .lanScan
                     if model.scanner.isScanningAny {
                         model.scanner.stopAll()
                     } else {
@@ -65,38 +71,76 @@ struct NetScannerApp: App {
                 .keyboardShortcut("r")
                 Divider()
                 // Same items as the toolbar's ⌄ menu.
-                ScanMenuItems(scanner: model.scanner) { model.isShowingScanSettings = true }
+                ScanMenuItems(scanner: model.scanner, onSelect: { model.section = .lanScan }) {
+                    model.section = .lanScan
+                    model.isShowingScanSettings = true
+                }
             }
             CommandGroup(after: .textEditing) {
-                Button("Find Hosts…") { model.searchFocusRequests += 1 }
-                    .keyboardShortcut("f")
+                Button("Find Hosts…") {
+                    model.section = .lanScan
+                    model.searchFocusRequests += 1
+                }
+                .keyboardShortcut("f")
             }
         }
-
-        // Listed in the Window menu too.
-        Window("Network Tools", id: networkToolsWindowID) {
-            NetworkToolsView(model: model.tools)
-        }
-        .defaultSize(width: 640, height: 640)
-
-        Window("Wi-Fi Analyzer", id: wifiAnalyzerWindowID) {
-            WiFiAnalyzerView(model: model.wifi)
-        }
-        .defaultSize(width: 1440, height: 800)
-
-        Window("Internet Connection", id: internetConnectionWindowID) {
-            InternetConnectionView(publicNetwork: model.publicNetwork, speedTest: model.speedTest)
-        }
-        .defaultSize(width: 520, height: 560)
     }
 }
 
+/// One window: the sidebar picks the section shown on the right.
 struct ContentView: View {
     @Environment(AppModel.self) private var model
+    /// Starts expanded; the toolbar's sidebar button hides it.
+    @State private var columns = NavigationSplitViewVisibility.all
+
+    var body: some View {
+        NavigationSplitView(columnVisibility: $columns) {
+            Sidebar(model: model)
+        } detail: {
+            switch model.section {
+            case .lanScan:
+                LanScanView()
+            case .wifi:
+                WiFiAnalyzerView(model: model.wifi)
+                    .navigationTitle(AppSection.wifi.title)
+            case .internet:
+                InternetConnectionView(publicNetwork: model.publicNetwork, speedTest: model.speedTest)
+                    .navigationTitle(AppSection.internet.title)
+            case .tools:
+                NetworkToolsView(model: model.tools)
+                    .navigationTitle(AppSection.tools.title)
+            }
+        }
+        // Keeps the interfaces in the ⌄ menu current when Wi-Fi, cable or VPN change.
+        .onChange(of: model.publicNetwork.pathChanges) {
+            model.scanner.refreshInterfaces()
+        }
+        #if DEBUG
+        // Lets screenshots and manual checks start with real data: NETSCANNER_AUTOSCAN=1,
+        // optionally NETSCANNER_SELECT=<ip> to select that host when the scan ends.
+        .task {
+            let environment = ProcessInfo.processInfo.environment
+            if let scene = environment["NETSCANNER_DEMO"] {
+                try? await Task.sleep(for: .milliseconds(300))
+                DemoData.load(scene, into: model)
+                model.section = DemoData.section(for: scene)
+                return
+            }
+            guard environment["NETSCANNER_AUTOSCAN"] == "1" else { return }
+            model.section = .lanScan
+            for task in model.scanner.startAllInterfaces() { await task.value }
+            if let ip = environment["NETSCANNER_SELECT"] {
+                model.selectedHostID = model.scanner.hosts.first { $0.address.description == ip }?.id
+            }
+        }
+        #endif
+    }
+}
+
+/// The host table, its inspector and the scan toolbar.
+struct LanScanView: View {
+    @Environment(AppModel.self) private var model
     @State private var isExporting = false
-    #if DEBUG
-    @Environment(\.openWindow) private var openWindow
-    #endif
 
     var body: some View {
         @Bindable var model = model
@@ -140,11 +184,6 @@ struct ContentView: View {
                     .standaloneToolbarButton()
                 }
                 .standaloneToolbarItem()
-                // A Menu ignores the glass button style; the toolbar's shared background gives it
-                // the same capsule as the ▶ button.
-                ToolbarItem(placement: .navigation) {
-                    ToolsToolbarMenu()
-                }
                 ToolbarItem(placement: .navigation) {
                     Button("Inspector", systemImage: "sidebar.right") { model.showInspector.toggle() }
                         .help(model.showInspector ? "Hide Inspector" : "Show Inspector")
@@ -168,30 +207,6 @@ struct ContentView: View {
         .sheet(isPresented: $model.isShowingScanSettings) {
             ScanSettingsView(scanner: model.scanner)
         }
-        // Keeps the interfaces in the ⌄ menu current when Wi-Fi, cable or VPN change.
-        .onChange(of: model.publicNetwork.pathChanges) {
-            model.scanner.refreshInterfaces()
-        }
-        #if DEBUG
-        // Lets screenshots and manual checks start with real data: NETSCANNER_AUTOSCAN=1,
-        // optionally NETSCANNER_SELECT=<ip> to select that host when the scan ends.
-        .task {
-            let environment = ProcessInfo.processInfo.environment
-            if let scene = environment["NETSCANNER_DEMO"] {
-                try? await Task.sleep(for: .milliseconds(300))
-                DemoData.load(scene, into: model)
-                if DemoData.opensNetworkTools(scene) { openWindow(id: networkToolsWindowID) }
-                if DemoData.opensInternetConnection(scene) { openWindow(id: internetConnectionWindowID) }
-                if scene.hasPrefix("wifi") { openWindow(id: wifiAnalyzerWindowID) }
-                return
-            }
-            guard environment["NETSCANNER_AUTOSCAN"] == "1" else { return }
-            for task in model.scanner.startAllInterfaces() { await task.value }
-            if let ip = environment["NETSCANNER_SELECT"] {
-                model.selectedHostID = model.scanner.hosts.first { $0.address.description == ip }?.id
-            }
-        }
-        #endif
     }
 }
 
@@ -236,6 +251,8 @@ struct ScanMenuItems: View {
     /// view body, so Observation rebuilds the menu when they change.
     var interfaces: [NetworkInterface]?
     var savedScans: [ScanTarget]?
+    /// Runs before a scan starts from the menu (the Scan menu shows the LAN Scan section).
+    var onSelect: () -> Void = {}
     let customize: () -> Void
 
     var body: some View {
@@ -243,6 +260,7 @@ struct ScanMenuItems: View {
         let savedScans = savedScans ?? scanner.savedScans
         ForEach(interfaces) { interface in
             Button("Interface \(interface.name) — \(scanner.defaultSubnet(for: interface).description)") {
+                onSelect()
                 scanner.start(interface: interface.name)
             }
         }
@@ -252,6 +270,7 @@ struct ScanMenuItems: View {
         }
         ForEach(savedScans) { saved in
             Button("\(saved.displayName) — \(scanner.describe(saved))") {
+                onSelect()
                 scanner.start([saved])
             }
             .disabled(scanner.plan(for: saved) == nil)

@@ -67,12 +67,12 @@ enum DemoData {
             .setFrame(NSRect(x: 80, y: 80, width: 1480, height: 860), display: true)
     }
 
-    /// Scenes shown in the Internet Connection window.
-    static func opensInternetConnection(_ scene: String) -> Bool { scene == "internet" }
-
-    /// Scenes shown in the Network Tools window.
-    static func opensNetworkTools(_ scene: String) -> Bool {
-        ["tools", "netping", "trace", "dns", "whois"].contains(scene)
+    /// The sidebar section a scene shows.
+    static func section(for scene: String) -> AppSection {
+        if scene.hasPrefix("wifi") { return .wifi }
+        if scene == "internet" { return .internet }
+        if ["tools", "netping", "trace", "dns", "whois"].contains(scene) { return .tools }
+        return .lanScan
     }
 
     private static let traceHops: [TraceSession.Hop] = [

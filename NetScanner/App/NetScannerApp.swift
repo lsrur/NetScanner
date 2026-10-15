@@ -16,6 +16,8 @@ final class AppModel {
     /// Bumped by ⌘F; the toolbar's filter field takes focus when it changes.
     var searchFocusRequests = 0
     var inspectorTab = InspectorTab.info
+    /// The saved-scans dialog; opened from the ⌄ menu or the Scan menu.
+    var isShowingScanSettings = false
 
     /// Ping and port scan always target the selected row; the network tools have their own windows.
     var selectedHostID: HostID? {
@@ -58,6 +60,9 @@ struct NetScannerApp: App {
                     }
                 }
                 .keyboardShortcut("r")
+                Divider()
+                // Same items as the toolbar's ⌄ menu.
+                ScanMenuItems(scanner: model.scanner) { model.isShowingScanSettings = true }
             }
             CommandGroup(after: .textEditing) {
                 Button("Find Hosts…") { model.searchFocusRequests += 1 }
@@ -75,7 +80,6 @@ struct NetScannerApp: App {
 
 struct ContentView: View {
     @Environment(AppModel.self) private var model
-    @State private var isShowingScanSettings = false
     @State private var isExporting = false
     #if DEBUG
     @Environment(\.openWindow) private var openWindow
@@ -104,7 +108,7 @@ struct ContentView: View {
                 // Leading edge, LanScan style: scan + customize share one control,
                 // every other action is its own capsule.
                 ToolbarItem(placement: .navigation) {
-                    ScanButton(scanner: model.scanner, isShowingSettings: $isShowingScanSettings)
+                    ScanButton(scanner: model.scanner) { model.isShowingScanSettings = true }
                 }
                 ToolbarItem(placement: .navigation) {
                     Button("Export CSV", systemImage: "square.and.arrow.down") { isExporting = true }
@@ -146,7 +150,7 @@ struct ContentView: View {
                       document: CSVDocument(text: model.scanner.csv),
                       contentType: .commaSeparatedText,
                       defaultFilename: "hosts.csv") { _ in }
-        .sheet(isPresented: $isShowingScanSettings) {
+        .sheet(isPresented: $model.isShowingScanSettings) {
             ScanSettingsView(scanner: model.scanner)
         }
         // Keeps the interfaces in the ⌄ menu current when Wi-Fi, cable or VPN change.
@@ -178,7 +182,7 @@ struct ContentView: View {
 /// lists single interfaces, then saved scans, then "Customize…" to edit the saved scans.
 private struct ScanButton: View {
     let scanner: ScannerModel
-    @Binding var isShowingSettings: Bool
+    let customize: () -> Void
 
     var body: some View {
         // Read here, not only inside the menu: SwiftUI builds menu content when it opens,
@@ -186,23 +190,7 @@ private struct ScanButton: View {
         let interfaces = scanner.interfaces
         let savedScans = scanner.savedScans
         Menu {
-            ForEach(interfaces) { interface in
-                Button("Interface \(interface.name) — \(scanner.defaultSubnet(for: interface).description)") {
-                    scanner.start(interface: interface.name)
-                }
-            }
-            Divider()
-            if savedScans.isEmpty {
-                Text("No Saved Scans")
-            }
-            ForEach(savedScans) { saved in
-                Button("\(saved.displayName) — \(scanner.describe(saved))") {
-                    scanner.start([saved])
-                }
-                .disabled(scanner.plan(for: saved) == nil)
-            }
-            Divider()
-            Button("Customize…") { isShowingSettings = true }
+            ScanMenuItems(scanner: scanner, interfaces: interfaces, savedScans: savedScans, customize: customize)
         } label: {
             if scanner.isScanningAny {
                 Label("Stop", systemImage: "stop.fill")
@@ -221,6 +209,38 @@ private struct ScanButton: View {
         .help(scanner.isScanningAny ? "Stop scanning" : "Scan all interfaces (⌘R)")
         // A new identity whenever the menu's data changes, so AppKit never shows a stale menu.
         .id([AnyHashable(interfaces), AnyHashable(savedScans)])
+    }
+}
+
+/// Single interfaces, then saved scans, then "Customize…": the ⌄ menu and the Scan menu.
+struct ScanMenuItems: View {
+    let scanner: ScannerModel
+    /// The ⌄ menu passes what its own body already read; the Scan menu reads them here, in a
+    /// view body, so Observation rebuilds the menu when they change.
+    var interfaces: [NetworkInterface]?
+    var savedScans: [ScanTarget]?
+    let customize: () -> Void
+
+    var body: some View {
+        let interfaces = interfaces ?? scanner.interfaces
+        let savedScans = savedScans ?? scanner.savedScans
+        ForEach(interfaces) { interface in
+            Button("Interface \(interface.name) — \(scanner.defaultSubnet(for: interface).description)") {
+                scanner.start(interface: interface.name)
+            }
+        }
+        Divider()
+        if savedScans.isEmpty {
+            Text("No Saved Scans")
+        }
+        ForEach(savedScans) { saved in
+            Button("\(saved.displayName) — \(scanner.describe(saved))") {
+                scanner.start([saved])
+            }
+            .disabled(scanner.plan(for: saved) == nil)
+        }
+        Divider()
+        Button("Customize…", action: customize)
     }
 }
 

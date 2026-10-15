@@ -79,9 +79,9 @@ A status bar shows your **ISP**, **country**, and **public IPv4 and IPv6** addre
 |---|---|
 | Scan every interface | Click **▶** in the toolbar, or press **⌘R** (also in the **Scan** menu) |
 | Stop a running scan | Click **■** (the same button), or press **⌘R** again |
-| Scan one interface | Click **⌄** next to ▶ and choose **Interface en0 — 192.168.0.0/24** |
-| Scan a saved range | Click **⌄** and choose the saved scan |
-| Create or edit saved ranges | Click **⌄** → **Customize…** |
+| Scan one interface | Click **⌄** next to ▶ (or open the **Scan** menu) and choose **Interface en0 — 192.168.1.0/24** |
+| Scan a saved range | Click **⌄** (or open the **Scan** menu) and choose the saved scan |
+| Create or edit saved ranges | Click **⌄** (or open the **Scan** menu) → **Customize…** |
 | Clear the results | Click the 🗑 toolbar button |
 
 Every scan replaces the previous results. Very large subnets (bigger than a /22) are narrowed to the /24 around your Mac's address; use a saved range to scan something else. Saved ranges are capped at 4,096 addresses.

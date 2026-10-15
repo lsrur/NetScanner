@@ -149,7 +149,7 @@ final class WiFiAnalyzerModel {
             checked.subtract(anonymous)
         }
         var seen = Set<Network.ID>()
-        for observation in observations {
+        for observation in Self.deduplicated(observations) {
             var id = Self.key(for: observation)
             // Without BSSIDs two APs can share a key; keep them apart within one scan.
             var suffix = 2
@@ -181,6 +181,31 @@ final class WiFiAnalyzerModel {
         for index in networks.indices {
             networks[index].isConnected = link?.bssid != nil && networks[index].latest.bssid == link?.bssid
         }
+    }
+
+    /// CoreWLAN sometimes lists the same BSSID two or three times in one scan (seen with hidden
+    /// networks); keep one entry per BSSID: the last one listed, keeping a name an earlier
+    /// entry had if the last one came without it.
+    static func deduplicated(_ observations: [WiFiObservation]) -> [WiFiObservation] {
+        var result: [WiFiObservation] = []
+        var indexByBSSID: [String: Int] = [:]
+        for observation in observations {
+            guard let bssid = observation.bssid else {
+                result.append(observation)
+                continue
+            }
+            guard let index = indexByBSSID[bssid] else {
+                indexByBSSID[bssid] = result.count
+                result.append(observation)
+                continue
+            }
+            var latest = observation
+            if latest.ssid?.isEmpty != false, let name = result[index].ssid, !name.isEmpty {
+                latest.ssid = name
+            }
+            result[index] = latest
+        }
+        return result
     }
 
     static func key(for observation: WiFiObservation) -> String {

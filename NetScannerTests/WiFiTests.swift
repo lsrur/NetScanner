@@ -82,6 +82,23 @@ struct WiFiAnalyzerModelTests {
         #expect(model.checked == ["aa:aa:aa:aa:aa:01"])
     }
 
+    @Test func repeatedBSSIDsInOneScanMakeOneRow() throws {
+        let model = WiFiAnalyzerModel()
+        var named = ap("aa:aa:aa:aa:aa:09", -80)
+        named.ssid = "Upstairs"
+        var hidden = ap("aa:aa:aa:aa:aa:09", -89)
+        hidden.ssid = nil
+        var last = hidden
+        last.rssi = -91
+        model.merge([named, hidden, last, ap("aa:aa:aa:aa:aa:01", -50)], link: nil, at: .now)
+        #expect(model.networks.count == 2)
+        let merged = try #require(model.networks.first { $0.id == "aa:aa:aa:aa:aa:09" })
+        #expect(merged.rssi == -91)                 // the last entry wins…
+        #expect(merged.ssidText == "Upstairs")      // …keeping the name an earlier one had
+        // Without BSSIDs (no Location access) identical entries still stay apart.
+        #expect(WiFiAnalyzerModel.deduplicated([ap(nil, -50), ap(nil, -50)]).count == 2)
+    }
+
     @Test func filtersByBand() {
         let model = WiFiAnalyzerModel()
         var five = ap("aa:aa:aa:aa:aa:05", -60, channel: 36)

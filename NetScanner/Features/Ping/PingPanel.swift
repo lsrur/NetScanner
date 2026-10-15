@@ -27,11 +27,29 @@ struct PingPanel: View {
             .controlSize(.large)
             .keyboardShortcut(.return, modifiers: .command)
 
+            PingResultsView(session: session)
+        }
+    }
+
+    private func toggle() {
+        session.isRunning ? session.stop() : session.start()
+    }
+}
+
+/// Error, statistics, RTT chart and per-packet log: the inspector's Ping tab and the Ping
+/// tab of the Network Tools window.
+struct PingResultsView: View {
+    let session: PingSession
+    /// 2 in the narrow inspector; the wider tools window fits the eight values in two rows.
+    var statColumns = 2
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
             if let error = session.errorMessage {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
             }
-            PingStatsGrid(stats: session.stats)
+            PingStatsGrid(stats: session.stats, columns: statColumns)
             chart
             log
         }
@@ -63,10 +81,6 @@ struct PingPanel: View {
         .frame(minHeight: 100)
     }
 
-    private func toggle() {
-        session.isRunning ? session.stop() : session.start()
-    }
-
     private static func logLine(for sample: PingSession.Sample) -> String {
         switch sample.outcome {
         case .reply(let ms):
@@ -81,27 +95,31 @@ struct PingPanel: View {
 
 private struct PingStatsGrid: View {
     let stats: PingStats
+    let columns: Int
 
     var body: some View {
+        let tiles = self.tiles
         Grid(horizontalSpacing: 8, verticalSpacing: 8) {
-            GridRow {
-                StatTile(title: "Sent", value: "\(stats.sent)")
-                StatTile(title: "Received", value: "\(stats.received)")
-            }
-            GridRow {
-                StatTile(title: "Loss", value: stats.lossPercent.formatted(.number.precision(.fractionLength(1))) + " %",
-                         highlight: stats.lost > 0 ? .red : nil)
-                StatTile(title: "Jitter", value: Self.ms(stats.jitter))
-            }
-            GridRow {
-                StatTile(title: "Min", value: Self.ms(stats.minimum))
-                StatTile(title: "Max", value: Self.ms(stats.maximum))
-            }
-            GridRow {
-                StatTile(title: "Avg", value: Self.ms(stats.average))
-                StatTile(title: "Std Dev", value: Self.ms(stats.standardDeviation))
+            ForEach(Array(stride(from: 0, to: tiles.count, by: columns)), id: \.self) { start in
+                GridRow {
+                    ForEach(tiles[start..<min(start + columns, tiles.count)], id: \.title) { $0 }
+                }
             }
         }
+    }
+
+    private var tiles: [StatTile] {
+        [
+            StatTile(title: "Sent", value: "\(stats.sent)"),
+            StatTile(title: "Received", value: "\(stats.received)"),
+            StatTile(title: "Loss", value: stats.lossPercent.formatted(.number.precision(.fractionLength(1))) + " %",
+                     highlight: stats.lost > 0 ? .red : nil),
+            StatTile(title: "Jitter", value: Self.ms(stats.jitter)),
+            StatTile(title: "Min", value: Self.ms(stats.minimum)),
+            StatTile(title: "Max", value: Self.ms(stats.maximum)),
+            StatTile(title: "Avg", value: Self.ms(stats.average)),
+            StatTile(title: "Std Dev", value: Self.ms(stats.standardDeviation)),
+        ]
     }
 
     private static func ms(_ value: Double?) -> String {

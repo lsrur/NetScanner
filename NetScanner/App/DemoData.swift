@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|new|moved|history|summary`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|tools|netping|trace|dns|whois|new|moved|history|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
@@ -28,13 +28,16 @@ enum DemoData {
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .ports
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
-        case "trace", "dns", "whois":
+        case "tools":
             model.selectedHostID = HostID(interface: "en0", address: nas)
+        case "trace", "dns", "whois", "netping":
+            model.selectedHostID = HostID(interface: "en0", address: nas)
+            model.tools.ping.loadDemo(address: IPv4Address("203.0.113.80")!, rtts: tvPings)
             model.tools.trace.loadDemo(host: "example.com", destination: IPv4Address("203.0.113.80")!, hops: traceHops)
             model.tools.dns.loadDemo(records: dnsRecords)
             model.tools.whois.loadDemo(answers: whoisAnswers)
             model.tools.loadDemo(destination: "example.com",
-                                 tab: scene == "trace" ? .traceroute : scene == "dns" ? .dns : .whois)
+                                 tab: ["netping": .ping, "trace": .traceroute, "dns": .dns][scene] ?? .whois)
         case "summary":
             model.selectedHostID = nil
         case "moved", "history":
@@ -54,7 +57,7 @@ enum DemoData {
 
     /// Scenes shown in the Network Tools window.
     static func opensNetworkTools(_ scene: String) -> Bool {
-        ["trace", "dns", "whois"].contains(scene)
+        ["tools", "netping", "trace", "dns", "whois"].contains(scene)
     }
 
     private static let traceHops: [TraceSession.Hop] = [

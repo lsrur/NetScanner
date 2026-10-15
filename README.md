@@ -61,6 +61,7 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 ### Network tools
 The toolbar's 🔧 button opens a **Network Tools** window: type a destination, check the tools to run and press **Run**. They run one after the other, each with its results in its own tab. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
 
+- **Ping:** 3 to 50 echo requests, one per second, with the same statistics, chart and log as the inspector's Ping tab.
 - **Traceroute:** the route to any name or address, using the same unprivileged ICMP socket as ping (no root, no helper). Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a maximum of 15, 30 or 64 hops.
 - **DNS Lookup:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
 - **Whois:** domains and public IP addresses, starting at IANA and following referrals to the registry and the registrar.
@@ -109,7 +110,7 @@ With a host selected, the top shows its IP plus editable **Name** and **Comment*
 Click 🔧 in the toolbar (the window is also listed in the **Window** menu).
 
 1. Type a domain or IP address in **Destination**.
-2. Check **Traceroute** (pick the maximum hops), **DNS Lookup** (pick a record type, or **All**) and/or **Whois**.
+2. Check **Ping** (pick how many), **Traceroute** (pick the maximum hops), **DNS Lookup** (pick a record type, or **All**) and/or **Whois**.
 3. Press **Run**, Return or ⌘↩. The tools run in that order; each tab shows **…** while its tool runs and **✓** when it's done. **Stop** cancels the rest.
 
 The window keeps the last results until you run it again.

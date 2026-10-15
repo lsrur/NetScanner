@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Tools that aren't tied to a host of the LAN; their destinations are usually on the internet.
 enum NetworkTool: String, CaseIterable, Identifiable {
+    case ping
     case traceroute
     case dns
     case whois
@@ -11,6 +12,7 @@ enum NetworkTool: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .ping: "Ping"
         case .traceroute: "Traceroute"
         case .dns: "DNS Lookup"
         case .whois: "Whois"
@@ -28,6 +30,11 @@ final class NetworkToolsModel {
     var enabled: Set<NetworkTool> = Set(NetworkTool.allCases)
     var selectedTab: NetworkTool?
 
+    let ping: PingSession = {
+        let session = PingSession()
+        session.count = 5
+        return session
+    }()
     let trace = TraceSession()
     let dns = DNSLookupModel()
     let whois = WhoisModel()
@@ -50,6 +57,7 @@ final class NetworkToolsModel {
         guard canRun else { return }
         task?.cancel()
         let tools = NetworkTool.allCases.filter(enabled.contains)
+        ping.clear()
         trace.clear()
         dns.clear()
         whois.clear()
@@ -64,6 +72,7 @@ final class NetworkToolsModel {
                 guard !Task.isCancelled else { break }
                 statuses[tool] = .running
                 switch tool {
+                case .ping: await ping.ping(target)
                 case .traceroute: await trace.trace(target)
                 case .dns: await dns.lookup(target)
                 case .whois: await whois.lookup(target)
@@ -103,11 +112,13 @@ let toolWindowMinSize = CGSize(width: 520, height: 440)
 
 struct NetworkToolsView: View {
     @Bindable var model: NetworkToolsModel
+    @Bindable var ping: PingSession
     @Bindable var trace: TraceSession
     @Bindable var dns: DNSLookupModel
 
     init(model: NetworkToolsModel) {
         self.model = model
+        ping = model.ping
         trace = model.trace
         dns = model.dns
     }
@@ -125,9 +136,18 @@ struct NetworkToolsView: View {
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!model.isRunning && !model.canRun)
             }
-            HStack(spacing: 20) {
-                HStack(spacing: 6) {
+            // Two columns: each tool's checkbox followed by its option.
+            Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 8) {
+                GridRow {
+                    toggle(.ping)
+                    Picker("Count", selection: $ping.count) {
+                        ForEach([3, 5, 10, 20, 50], id: \.self) { Text("\($0) pings").tag($0) }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .help("Number of echo requests, one per second")
                     toggle(.traceroute)
+                        .padding(.leading, 20)
                     Picker("Max hops", selection: $trace.maxHops) {
                         ForEach([15, 30, 64], id: \.self) { Text("\($0) hops").tag($0) }
                     }
@@ -135,7 +155,7 @@ struct NetworkToolsView: View {
                     .fixedSize()
                     .help("Maximum number of hops")
                 }
-                HStack(spacing: 6) {
+                GridRow {
                     toggle(.dns)
                     Picker("Record type", selection: $dns.recordType) {
                         ForEach(DNSLookup.RecordType.allCases) { Text($0.rawValue).tag($0) }
@@ -143,15 +163,16 @@ struct NetworkToolsView: View {
                     .labelsHidden()
                     .fixedSize()
                     .help("Record type. An IPv4 address is always looked up as PTR.")
+                    toggle(.whois)
+                        .padding(.leading, 20)
                 }
-                toggle(.whois)
             }
             .disabled(model.isRunning)
 
             if model.tabs.isEmpty {
                 ContentUnavailableView("No Results Yet", systemImage: "network",
                                        description: Text("Type a domain or IP address, check the tools to run and press Run."))
-                    .frame(maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Picker("Results", selection: $model.selectedTab) {
                     ForEach(model.tabs) { Text(tabTitle($0)).tag(Optional($0)) }
@@ -162,6 +183,7 @@ struct NetworkToolsView: View {
                 .frame(maxWidth: .infinity)
                 Group {
                     switch model.selectedTab {
+                    case .ping: PingResultsView(session: model.ping, statColumns: 4)
                     case .traceroute: TraceResultsView(session: model.trace)
                     case .dns: DNSResultsView(model: model.dns)
                     case .whois: WhoisResultsView(model: model.whois)
@@ -202,6 +224,6 @@ struct NetworkToolsButton: View {
 
     var body: some View {
         Button("Network Tools", systemImage: "wrench.and.screwdriver") { openWindow(id: networkToolsWindowID) }
-            .help("Network tools: traceroute, DNS lookup and whois")
+            .help("Network tools: ping, traceroute, DNS lookup and whois")
     }
 }

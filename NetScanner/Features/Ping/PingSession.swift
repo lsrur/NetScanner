@@ -64,6 +64,30 @@ final class PingSession {
         isRunning = false
     }
 
+    /// Pings `host` `count` times (∞ isn't allowed here) and returns when done or when the
+    /// calling task is cancelled. Used by the Network Tools window, which runs tools in turn.
+    func ping(_ host: String) async {
+        task?.cancel()
+        runID += 1
+        self.host = host
+        samples = []
+        stats = PingStats()
+        resolvedAddress = nil
+        errorMessage = nil
+        isRunning = true
+        await run(host: host)
+        isRunning = false
+    }
+
+    func clear() {
+        stop()
+        host = ""
+        samples = []
+        stats = PingStats()
+        resolvedAddress = nil
+        errorMessage = nil
+    }
+
     private func run(host: String) async {
         do {
             let address = try await HostResolver.resolveIPv4(host)

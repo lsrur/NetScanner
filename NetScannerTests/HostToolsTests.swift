@@ -132,9 +132,11 @@ struct NetworkToolsModelTests {
     @Test func runsCheckedToolsInOrder() async throws {
         let model = NetworkToolsModel()
         model.destination = "127.0.0.1"
+        model.ping.count = 2
+        model.ping.interval = 0.2
         model.run()
-        #expect(model.tabs == [.traceroute, .dns, .whois])
-        #expect(model.selectedTab == .traceroute)
+        #expect(model.tabs == [.ping, .traceroute, .dns, .whois])
+        #expect(model.selectedTab == .ping)
         var started: [NetworkTool] = []
         let deadline = Date().addingTimeInterval(20)
         while model.isRunning, Date() < deadline {
@@ -144,8 +146,9 @@ struct NetworkToolsModelTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(!model.isRunning)
-        #expect(started.first == .traceroute)
+        #expect(started.first == .ping)
         #expect(NetworkTool.allCases.allSatisfy { model.status(of: $0) == .done })
+        #expect(model.ping.stats.received == 2)
         #expect(model.trace.reachedDestination)
         #expect(model.whois.message?.contains("private address") == true)
 

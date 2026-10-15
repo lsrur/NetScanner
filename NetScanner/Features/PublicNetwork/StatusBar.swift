@@ -8,30 +8,11 @@ struct StatusBar: View {
         HStack(spacing: 18) {
             if scanner.isScanningAny {
                 scanProgress
-            } else if let info = model.info {
-                item("ISP", info.isp)
-                item("Country", [info.flag, info.countryName].compactMap { $0 }.joined(separator: " "))
-                item("Public IPv4", info.ipv4)
-                item("Public IPv6", info.ipv6)
-            } else if model.isLoading {
-                ProgressView()
-                    .controlSize(.mini)
-                Text("Looking up public IP…")
-                    .foregroundStyle(.secondary)
             } else if model.isOffline {
                 Label("No Internet connection", systemImage: "wifi.exclamationmark")
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            if model.isLoading, model.info != nil, !scanner.isScanningAny {
-                ProgressView()
-                    .controlSize(.mini)
-            }
-            Button("Refresh", systemImage: "arrow.clockwise", action: model.refresh)
-                .labelStyle(.iconOnly)
-                .buttonStyle(.borderless)
-                .disabled(model.isLoading)
-                .help(helpText)
         }
         .font(.caption)
         .lineLimit(1)
@@ -58,21 +39,9 @@ struct StatusBar: View {
         }
     }
 
-    @ViewBuilder
-    private func item(_ title: String, _ value: String?) -> some View {
-        if let value, !value.isEmpty {
-            HStack(spacing: 4) {
-                Text(title)
-                    .foregroundStyle(.secondary)
-                Text(verbatim: value)
-                    .textSelection(.enabled)
-            }
-        }
-    }
-
-    private var helpText: String {
-        let source = "Source: ipinfo.io"
-        guard let updatedAt = model.updatedAt else { return source }
-        return "\(source) · updated \(updatedAt.formatted(date: .omitted, time: .shortened))"
+    /// Only shown while scanning or offline; ISP and public addresses live in
+    /// Tools → Internet Connection.
+    static func isVisible(model: PublicNetworkModel, scanner: ScannerModel) -> Bool {
+        scanner.isScanningAny || model.isOffline
     }
 }

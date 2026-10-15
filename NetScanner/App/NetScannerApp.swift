@@ -10,6 +10,7 @@ final class AppModel {
     let ports: PortScanModel
     let tools = NetworkToolsModel()
     let publicNetwork = PublicNetworkModel()
+    let speedTest = SpeedTestModel()
     var showInspector = true
     /// The host table's filter, typed in the toolbar.
     var hostQuery = ""
@@ -51,6 +52,7 @@ struct NetScannerApp: App {
         }
         .defaultSize(width: 1280, height: 720)
         .commands {
+            ToolsCommands()
             CommandMenu("Scan") {
                 Button(model.scanner.isScanningAny ? "Stop Scan" : "Scan All Interfaces") {
                     if model.scanner.isScanningAny {
@@ -75,6 +77,11 @@ struct NetScannerApp: App {
             NetworkToolsView(model: model.tools)
         }
         .defaultSize(width: 640, height: 640)
+
+        Window("Internet Connection", id: internetConnectionWindowID) {
+            InternetConnectionView(publicNetwork: model.publicNetwork, speedTest: model.speedTest)
+        }
+        .defaultSize(width: 520, height: 560)
     }
 }
 
@@ -127,11 +134,11 @@ struct ContentView: View {
                     .standaloneToolbarButton()
                 }
                 .standaloneToolbarItem()
+                // A Menu ignores the glass button style; the toolbar's shared background gives it
+                // the same capsule as the ▶ button.
                 ToolbarItem(placement: .navigation) {
-                    NetworkToolsButton()
-                        .standaloneToolbarButton()
+                    ToolsToolbarMenu()
                 }
-                .standaloneToolbarItem()
                 ToolbarItem(placement: .navigation) {
                     Button("Inspector", systemImage: "sidebar.right") { model.showInspector.toggle() }
                         .help(model.showInspector ? "Hide Inspector" : "Show Inspector")
@@ -144,7 +151,9 @@ struct ContentView: View {
                 .standaloneToolbarItem()
             }
 
-            StatusBar(model: model.publicNetwork, scanner: model.scanner)
+            if StatusBar.isVisible(model: model.publicNetwork, scanner: model.scanner) {
+                StatusBar(model: model.publicNetwork, scanner: model.scanner)
+            }
         }
         .fileExporter(isPresented: $isExporting,
                       document: CSVDocument(text: model.scanner.csv),
@@ -166,6 +175,7 @@ struct ContentView: View {
                 try? await Task.sleep(for: .milliseconds(300))
                 DemoData.load(scene, into: model)
                 if DemoData.opensNetworkTools(scene) { openWindow(id: networkToolsWindowID) }
+                if DemoData.opensInternetConnection(scene) { openWindow(id: internetConnectionWindowID) }
                 return
             }
             guard environment["NETSCANNER_AUTOSCAN"] == "1" else { return }

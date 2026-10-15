@@ -2,14 +2,15 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|tools|netping|trace|dns|whois|new|moved|history|summary`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|internet|tools|netping|trace|dns|whois|new|moved|history|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
 enum DemoData {
     static func load(_ scene: String, into model: AppModel) {
         model.publicNetwork.loadDemo(PublicNetworkInfo(ipv4: "203.0.113.42", ipv6: "2001:db8:4a2c:100::1f",
-                                                       isp: "Example Broadband Co.", countryCode: "US", city: nil))
+                                                       isp: "Example Broadband Co.", asn: "AS64500",
+                                                       countryCode: "US", city: "Springfield", region: "Illinois"))
         let target = ScanTarget.subnet(of: "en0")
         var state = ScanState(name: target.name, interface: "en0", summary: "192.168.1.0/24")
         state.progress = 1
@@ -28,6 +29,11 @@ enum DemoData {
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .ports
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
+        case "internet":
+            model.selectedHostID = HostID(interface: "en0", address: nas)
+            model.speedTest.loadDemo(SpeedTestResult(download: 287_400_000, upload: 41_800_000, idleLatency: 18,
+                                                      responsiveness: 642, interface: "en0",
+                                                      server: "edge.speedtest.example", date: .now))
         case "tools":
             model.selectedHostID = HostID(interface: "en0", address: nas)
         case "trace", "dns", "whois", "netping":
@@ -54,6 +60,9 @@ enum DemoData {
         NSApp.windows.first { $0.isVisible && $0.frame.width > 500 }?
             .setFrame(NSRect(x: 80, y: 80, width: 1480, height: 860), display: true)
     }
+
+    /// Scenes shown in the Internet Connection window.
+    static func opensInternetConnection(_ scene: String) -> Bool { scene == "internet" }
 
     /// Scenes shown in the Network Tools window.
     static func opensNetworkTools(_ scene: String) -> Bool {

@@ -218,12 +218,38 @@ struct NetworkToolsView: View {
     }
 }
 
-/// Toolbar button that opens the Network Tools window.
-struct NetworkToolsButton: View {
+/// The Tools menu: in the menu bar and behind the toolbar's 🔧 button.
+struct ToolsMenuItems: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Network Tools", systemImage: "wrench.and.screwdriver") { openWindow(id: networkToolsWindowID) }
-            .help("Network tools: ping, traceroute, DNS lookup and whois")
+        Button("Network Tools…", systemImage: "point.3.connected.trianglepath.dotted") {
+            openWindow(id: networkToolsWindowID)
+        }
+        Button("Internet Connection…", systemImage: "globe") {
+            openWindow(id: internetConnectionWindowID)
+        }
+        Button("Wi-Fi Analyzer…", systemImage: "wifi") {}
+            .disabled(true)
+            .help("Coming soon")
+    }
+}
+
+struct ToolsCommands: Commands {
+    var body: some Commands {
+        CommandMenu("Tools") {
+            ToolsMenuItems()
+        }
+    }
+}
+
+/// Toolbar: 🔧 drops down the Tools menu.
+struct ToolsToolbarMenu: View {
+    var body: some View {
+        Menu("Tools", systemImage: "wrench.and.screwdriver") {
+            ToolsMenuItems()
+        }
+        .menuIndicator(.hidden)
+        .help("Network tools, Internet connection and speed test")
     }
 }

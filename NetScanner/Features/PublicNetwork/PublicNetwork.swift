@@ -6,8 +6,11 @@ struct PublicNetworkInfo: Equatable, Sendable {
     var ipv4: String?
     var ipv6: String?
     var isp: String?
+    /// "AS64500".
+    var asn: String?
     var countryCode: String?
     var city: String?
+    var region: String?
 
     var countryName: String? {
         countryCode.flatMap { Locale.current.localizedString(forRegionCode: $0) }
@@ -30,6 +33,7 @@ enum PublicNetworkLookup {
         let org: String?
         let country: String?
         let city: String?
+        let region: String?
     }
 
     static let ipv4URL = URL(string: "https://ipinfo.io/json")!
@@ -48,9 +52,18 @@ enum PublicNetworkLookup {
             ipv4: answered.first { !$0.ip.contains(":") }?.ip,
             ipv6: answered.first { $0.ip.contains(":") }?.ip,
             isp: ispName(fromOrg: first.org),
+            asn: asn(fromOrg: first.org),
             countryCode: first.country,
-            city: first.city
+            city: first.city,
+            region: first.region
         )
+    }
+
+    /// The AS number of ipinfo's "AS64500 Example Telecom S.A.".
+    static func asn(fromOrg org: String?) -> String? {
+        guard let first = org?.split(separator: " ", maxSplits: 1).first, first.hasPrefix("AS"),
+              first.count > 2, first.dropFirst(2).allSatisfy(\.isNumber) else { return nil }
+        return String(first)
     }
 
     /// ipinfo reports the ISP as "AS64500 Example Telecom S.A."; drop the AS number.

@@ -59,7 +59,7 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 ![Open ports on a NAS, with service banners, typical uses and clickable http/https links](docs/screenshots/ports.png)
 
 ### Network tools
-The toolbar's 🔧 button opens a **Network Tools** window: type a destination, check the tools to run and press **Run**. They run one after the other, each with its results in its own tab. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
+**Tools → Network Tools…** (also behind the toolbar's 🔧 button) opens a window where you type a destination, check the tools to run and press **Run**. They run one after the other, each with its results in its own tab. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
 
 - **Ping:** 3 to 50 echo requests, one per second, with the same statistics, chart and log as the inspector's Ping tab.
 - **Traceroute:** the route to any name or address, using the same unprivileged ICMP socket as ping (no root, no helper). Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a maximum of 15, 30 or 64 hops.
@@ -70,8 +70,10 @@ The toolbar's 🔧 button opens a **Network Tools** window: type a destination, 
 
 ![The DNS Lookup tab: A, AAAA, MX, NS, TXT and SOA records of example.com](docs/screenshots/dns.png)
 
-### Public network info
-A status bar shows your **ISP**, **country**, and **public IPv4 and IPv6** addresses. It refreshes automatically when your network changes. While a scan runs, it shows the scan progress instead.
+### Internet connection
+**Tools → Internet Connection…** shows your **ISP**, its **AS number**, your **public IPv4 and IPv6** addresses and their **location**, refreshed automatically when your network changes. It also runs a **speed test**: download and upload capacity, idle latency and responsiveness under load, measured by macOS's built-in `networkQuality` against Apple's servers.
+
+![Internet Connection window: ISP, ASN, public addresses, location and speed test results](docs/screenshots/internet.png)
 
 ## Using NetScanner
 
@@ -107,7 +109,7 @@ With a host selected, the top shows its IP plus editable **Name** and **Comment*
 - **History:** every IP address the device has used (followed by its MAC), with when each was first and last seen. The current one is tagged **Current**, and the one it just left **Previous**.
 
 ### Network tools
-Click 🔧 in the toolbar (the window is also listed in the **Window** menu).
+Open **Tools → Network Tools…**, or click 🔧 in the toolbar and choose it.
 
 1. Type a domain or IP address in **Destination**.
 2. Check **Ping** (pick how many), **Traceroute** (pick the maximum hops), **DNS Lookup** (pick a record type, or **All**) and/or **Whois**.
@@ -115,13 +117,17 @@ Click 🔧 in the toolbar (the window is also listed in the **Window** menu).
 
 The window keeps the last results until you run it again.
 
+### Internet connection
+Open **Tools → Internet Connection…** (or 🔧 → **Internet Connection…**). Click ↻ to look up the public addresses again, and **Run Speed Test** to measure the connection (about 20 seconds; **Stop** cancels it).
+
 ### Status bar
-Shows ISP, country flag and public IPs. Click ↻ to refresh them manually.
+Appears at the bottom only while a scan runs (progress and hosts found) or when there's no Internet connection.
 
 ## Privacy
 
 - Scanning, pinging and port scanning stay on your local network, unless you point a tool at an outside address yourself.
-- The only automatic external request is to [ipinfo.io](https://ipinfo.io), to display your public IP, ISP and country in the status bar.
+- The only automatic external request is to [ipinfo.io](https://ipinfo.io), for your public IP, ISP and location in the Internet Connection window.
+- The speed test runs only when you press **Run Speed Test**; macOS's `networkQuality` talks to Apple's measurement servers.
 - DNS lookups go to the DNS servers your Mac already uses; whois queries go to whois.iana.org and the registry/registrar servers it refers to, only when you press **Whois**.
 - Saved data stays on your Mac, in the app's sandbox container: known devices (names, comments, first/last seen, IP history) in a SwiftData store, settings (saved ranges, port lists, columns) in its preferences.
 
@@ -174,7 +180,7 @@ scripts/update-services.sh   # service names from /etc/services
 ```
 
 Debug builds also accept some environment variables, handy for screenshots: `NETSCANNER_AUTOSCAN=1` scans all interfaces on launch, `NETSCANNER_SELECT=<ip>` selects that host when the scan ends, and `NETSCANNER_SORT=firstSeen` starts with the newest devices first.
-The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|new|summary`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
+The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|history|moved|new|summary|internet|tools|netping|trace|dns|whois`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
 
 ```sh
 NETSCANNER_AUTOSCAN=1 build/Build/Products/Debug/NetScanner.app/Contents/MacOS/NetScanner

@@ -59,12 +59,13 @@ struct PublicNetworkTests {
         let v4 = try JSONDecoder().decode(PublicNetworkLookup.IPInfo.self, from: Data("""
         {"ip": "203.0.113.10", "city": "Buenos Aires", "country": "AR", "org": "AS64500 Example Telecom S.A.", "readme": "x"}
         """.utf8))
-        let v6 = PublicNetworkLookup.IPInfo(ip: "2001:db8:1:2::1", org: nil, country: "AR", city: nil)
+        let v6 = PublicNetworkLookup.IPInfo(ip: "2001:db8:1:2::1", org: nil, country: "AR", city: nil, region: nil)
 
         let info = try #require(PublicNetworkLookup.merge(v4, v6))
         #expect(info.ipv4 == "203.0.113.10")
         #expect(info.ipv6 == "2001:db8:1:2::1")
         #expect(info.isp == "Example Telecom S.A.")
+        #expect(info.asn == "AS64500")
         #expect(info.flag == "🇦🇷")
 
         #expect(PublicNetworkLookup.merge(nil, v6)?.ipv4 == nil)

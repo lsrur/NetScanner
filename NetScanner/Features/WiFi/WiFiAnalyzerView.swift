@@ -328,8 +328,7 @@ private struct ChartPanel: View {
     }
 }
 
-/// Each network in range as an arch over the channels it occupies, as tall as its signal.
-/// Checked networks are drawn stronger.
+/// Each checked network in range as an arch over the channels it occupies, as tall as its signal.
 private struct ChannelChart: View {
     let model: WiFiAnalyzerModel
     let band: WiFiBand
@@ -370,28 +369,27 @@ private struct ChannelChart: View {
 
     var body: some View {
         let networks = model.networks
-            .filter { $0.latest.band == band && model.isInRange($0) }
+            .filter { $0.latest.band == band && model.isInRange($0) && model.checked.contains($0.id) }
             .sorted { $0.rssi < $1.rssi }  // strongest drawn last, on top
         Chart {
             ForEach(networks) { network in
                 let color = WiFiPalette.color(network.colorIndex)
-                let isChecked = model.checked.contains(network.id)
                 ForEach(arch(network)) { point in
                     AreaMark(x: .value("Channel", point.channel), yStart: .value("Floor", Self.floor),
                              yEnd: .value("Signal", point.rssi), series: .value("Network", network.id))
-                        .foregroundStyle(color.opacity(isChecked ? 0.2 : 0.08))
+                        .foregroundStyle(color.opacity(0.18))
                     LineMark(x: .value("Channel", point.channel), y: .value("Signal", point.rssi),
                              series: .value("Network", network.id))
-                        .foregroundStyle(color.opacity(isChecked ? 1 : 0.6))
-                        .lineStyle(StrokeStyle(lineWidth: isChecked ? 2 : 1))
+                        .foregroundStyle(color)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
                 }
                 let (center, _) = WiFiChannelSpan.span(channel: network.channel, width: network.width, band: band)
                 PointMark(x: .value("Channel", center), y: .value("Signal", network.rssi))
                     .opacity(0)
                     .annotation(position: .top, spacing: 2) {
                         Text(verbatim: network.ssidText)
-                            .font(.caption.weight(isChecked ? .semibold : .regular))
-                            .foregroundStyle(color.opacity(isChecked ? 1 : 0.75))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(color)
                     }
             }
         }
@@ -409,7 +407,7 @@ private struct ChannelChart: View {
         .chartPlotStyle { $0.clipped() }
         .overlay {
             if networks.isEmpty, !model.networks.isEmpty {
-                Text("No networks in range on \(band.rawValue) GHz.")
+                Text("Check networks on \(band.rawValue) GHz in the table to chart them.")
                     .foregroundStyle(.secondary)
             }
         }

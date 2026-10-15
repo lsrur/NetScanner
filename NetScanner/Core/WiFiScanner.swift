@@ -129,3 +129,25 @@ enum WiFiScanner {
         return ordered.filter { supports($0.0) }.map(\.1).joined(separator: "/")
     }
 }
+
+/// Where a network sits on the channel axis: the center of its (possibly bonded) block and
+/// how far it reaches on each side, in channel numbers.
+enum WiFiChannelSpan {
+    static func span(channel: Int, width: Int, band: WiFiBand) -> (center: Double, halfWidth: Double) {
+        let width = max(width, 20)
+        // 2.4 GHz channels are 5 MHz apart, 5/6 GHz channel numbers too (a 20 MHz channel = 4 numbers).
+        let halfWidth = Double(width) / 5 / 2
+        switch band {
+        case .ghz5, .ghz6:
+            // Bonded blocks are aligned: 5 GHz from 36, 100 and 149; 6 GHz from 1.
+            let base = band == .ghz6 ? 1 : channel <= 64 ? 36 : channel <= 144 ? 100 : 149
+            let block = width / 5
+            let start = base + max(0, (channel - base) / block) * block
+            return (Double(start) + Double(block - 4) / 2, halfWidth)
+        default:
+            // The secondary 40 MHz channel isn't reported; assume above for low channels.
+            let center = width == 40 ? Double(channel) + (channel <= 7 ? 2 : -2) : Double(channel)
+            return (center, halfWidth)
+        }
+    }
+}

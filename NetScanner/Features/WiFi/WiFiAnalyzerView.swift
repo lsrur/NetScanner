@@ -29,9 +29,9 @@ struct WiFiAnalyzerView: View {
             }
             Divider()
             VSplitView {
-                SignalChart(model: model)
+                ChartPanel(model: model)
                     .padding()
-                    .frame(minHeight: 160, idealHeight: 240)
+                    .frame(minHeight: 200, idealHeight: 280)
                 table
                     .frame(minHeight: 200)
             }
@@ -277,6 +277,145 @@ struct WiFiAnalyzerView: View {
 enum WiFiPalette {
     static let colors: [Color] = [.blue, .purple, .teal, .orange, .pink, .green, .indigo, .brown, .cyan, .mint, .red, .yellow]
     static func color(_ index: Int) -> Color { colors[index % colors.count] }
+}
+
+/// The two charts: signal over time, and the networks laid out on their channels.
+private struct ChartPanel: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case time = "Signal over Time"
+        case channels = "Channels"
+        var id: Self { self }
+    }
+
+    let model: WiFiAnalyzerModel
+    @AppStorage("wifiChartMode") private var mode = Mode.time
+    /// The channel chart shows one band at a time; it follows the band filter unless that's "All".
+    @AppStorage("wifiChannelBand") private var channelBand = WiFiBand.ghz2.rawValue
+
+    private var band: WiFiBand {
+        switch model.bandFilter {
+        case .ghz2: .ghz2
+        case .ghz5: .ghz5
+        case .ghz6: .ghz6
+        case .all: WiFiBand(rawValue: channelBand) ?? .ghz2
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Picker("Chart", selection: $mode) {
+                    ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                Spacer()
+                if mode == .channels, model.bandFilter == .all {
+                    Picker("Band", selection: $channelBand) {
+                        Text("2.4 GHz").tag(WiFiBand.ghz2.rawValue)
+                        Text("5 GHz").tag(WiFiBand.ghz5.rawValue)
+                        Text("6 GHz").tag(WiFiBand.ghz6.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+            switch mode {
+            case .time: SignalChart(model: model)
+            case .channels: ChannelChart(model: model, band: band)
+            }
+        }
+    }
+}
+
+/// Each network in range as an arch over the channels it occupies, as tall as its signal.
+/// Checked networks are drawn stronger.
+private struct ChannelChart: View {
+    let model: WiFiAnalyzerModel
+    let band: WiFiBand
+
+    private struct Point: Identifiable {
+        let id: Int
+        let channel: Double
+        let rssi: Double
+    }
+
+    private static let floor = -100.0
+
+    private var domain: ClosedRange<Double> {
+        switch band {
+        case .ghz5: 30 ... 179
+        case .ghz6: -3 ... 237
+        default: -1 ... 16
+        }
+    }
+
+    private var ticks: [Int] {
+        switch band {
+        case .ghz5: [36, 52, 64, 100, 116, 132, 144, 149, 165, 177]
+        case .ghz6: Array(stride(from: 1, through: 233, by: 16))
+        default: Array(1...14)
+        }
+    }
+
+    /// A parabola from the floor at both edges up to the network's signal at the center.
+    private func arch(_ network: WiFiAnalyzerModel.Network) -> [Point] {
+        let (center, half) = WiFiChannelSpan.span(channel: network.channel, width: network.width, band: band)
+        let peak = Double(network.rssi)
+        return (0...24).map { step in
+            let x = -1 + Double(step) / 12
+            return Point(id: step, channel: center + x * half, rssi: Self.floor + (peak - Self.floor) * (1 - x * x))
+        }
+    }
+
+    var body: some View {
+        let networks = model.networks
+            .filter { $0.latest.band == band && model.isInRange($0) }
+            .sorted { $0.rssi < $1.rssi }  // strongest drawn last, on top
+        Chart {
+            ForEach(networks) { network in
+                let color = WiFiPalette.color(network.colorIndex)
+                let isChecked = model.checked.contains(network.id)
+                ForEach(arch(network)) { point in
+                    AreaMark(x: .value("Channel", point.channel), yStart: .value("Floor", Self.floor),
+                             yEnd: .value("Signal", point.rssi), series: .value("Network", network.id))
+                        .foregroundStyle(color.opacity(isChecked ? 0.2 : 0.08))
+                    LineMark(x: .value("Channel", point.channel), y: .value("Signal", point.rssi),
+                             series: .value("Network", network.id))
+                        .foregroundStyle(color.opacity(isChecked ? 1 : 0.6))
+                        .lineStyle(StrokeStyle(lineWidth: isChecked ? 2 : 1))
+                }
+                let (center, _) = WiFiChannelSpan.span(channel: network.channel, width: network.width, band: band)
+                PointMark(x: .value("Channel", center), y: .value("Signal", network.rssi))
+                    .opacity(0)
+                    .annotation(position: .top, spacing: 2) {
+                        Text(verbatim: network.ssidText)
+                            .font(.caption.weight(isChecked ? .semibold : .regular))
+                            .foregroundStyle(color.opacity(isChecked ? 1 : 0.75))
+                    }
+            }
+        }
+        .chartXScale(domain: domain)
+        .chartYScale(domain: Self.floor ... -20)
+        .chartXAxis {
+            AxisMarks(values: ticks) { value in
+                AxisGridLine()
+                AxisValueLabel { Text("\(value.as(Int.self) ?? 0)") }
+            }
+        }
+        .chartXAxisLabel("Channel", alignment: .center)
+        .chartYAxisLabel("dBm")
+        .chartLegend(.hidden)
+        .chartPlotStyle { $0.clipped() }
+        .overlay {
+            if networks.isEmpty, !model.networks.isEmpty {
+                Text("No networks in range on \(band.rawValue) GHz.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
 }
 
 /// RSSI over time of the checked networks.

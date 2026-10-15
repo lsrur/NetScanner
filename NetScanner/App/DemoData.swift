@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|wifi|wifi-live|internet|tools|netping|trace|dns|whois|new|moved|history|summary`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|wifi|wifi-channels|wifi-live|internet|tools|netping|trace|dns|whois|new|moved|history|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
@@ -31,7 +31,8 @@ enum DemoData {
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
         case "wifi-live":
             break  // only opens the window: real scans
-        case "wifi":
+        case "wifi", "wifi-channels":
+            UserDefaults.standard.set(scene == "wifi" ? "Signal over Time" : "Channels", forKey: "wifiChartMode")
             model.wifi.loadDemo(wifiScans, link: WiFiLink(bssid: "50:c7:bf:3a:91:05", channel: 36, rssi: -48, noise: -92,
                                                            transmitRate: 866))
         case "internet":

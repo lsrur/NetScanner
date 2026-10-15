@@ -84,3 +84,18 @@ struct WiFiAnalyzerModelTests {
         #expect(model.visibleNetworks.map(\.id) == ["aa:aa:aa:aa:aa:05"])
     }
 }
+
+struct WiFiChannelSpanTests {
+    @Test func centersBondedBlocks() {
+        #expect(WiFiChannelSpan.span(channel: 6, width: 20, band: .ghz2) == (6, 2))
+        #expect(WiFiChannelSpan.span(channel: 1, width: 40, band: .ghz2) == (3, 4))
+        #expect(WiFiChannelSpan.span(channel: 36, width: 20, band: .ghz5) == (36, 2))
+        #expect(WiFiChannelSpan.span(channel: 44, width: 40, band: .ghz5) == (46, 4))
+        #expect(WiFiChannelSpan.span(channel: 44, width: 80, band: .ghz5) == (42, 8))
+        #expect(WiFiChannelSpan.span(channel: 52, width: 160, band: .ghz5) == (50, 16))
+        #expect(WiFiChannelSpan.span(channel: 149, width: 80, band: .ghz5) == (155, 8))
+        #expect(WiFiChannelSpan.span(channel: 116, width: 80, band: .ghz5) == (122, 8))
+        #expect(WiFiChannelSpan.span(channel: 37, width: 160, band: .ghz6) == (47, 16))
+        #expect(WiFiChannelSpan.span(channel: 5, width: 80, band: .ghz6) == (7, 8))
+    }
+}

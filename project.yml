@@ -20,6 +20,8 @@ targets:
       path: NetScanner/Info.plist
       properties:
         CFBundleDisplayName: NetScanner
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.developer-tools
         NSLocalNetworkUsageDescription: NetScanner needs local network access to discover devices, ping them and scan their ports.
     entitlements:

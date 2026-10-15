@@ -135,8 +135,8 @@ struct NetworkToolsModelTests {
         model.ping.count = 2
         model.ping.interval = 0.2
         model.run()
-        #expect(model.tabs == [.ping, .traceroute, .dns, .whois])
-        #expect(model.selectedTab == .ping)
+        #expect(model.tools == [.ping, .traceroute, .dns, .whois])
+        #expect(model.panels.first == .ping)   // ping runs first; the rest wait without a panel
         var started: [NetworkTool] = []
         let deadline = Date().addingTimeInterval(20)
         while model.isRunning, Date() < deadline {
@@ -148,16 +148,18 @@ struct NetworkToolsModelTests {
         #expect(!model.isRunning)
         #expect(started.first == .ping)
         #expect(NetworkTool.allCases.allSatisfy { model.status(of: $0) == .done })
+        #expect(model.panels == [.ping, .traceroute, .dns, .whois])
         #expect(model.ping.stats.received == 2)
         #expect(model.trace.reachedDestination)
         #expect(model.whois.message?.contains("private address") == true)
 
         model.enabled = [.dns]
         model.run()
-        #expect(model.tabs == [.dns])
-        #expect(model.selectedTab == .dns)
+        #expect(model.tools == [.dns])
         model.stop()
         #expect(!model.isRunning)
-        #expect(model.status(of: .dns) == .idle)
+        // Cut short while running: its panel stays, marked stopped.
+        #expect(model.status(of: .dns) == .stopped)
+        #expect(model.panels == [.dns])
     }
 }

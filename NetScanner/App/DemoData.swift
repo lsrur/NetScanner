@@ -48,8 +48,7 @@ enum DemoData {
             model.tools.trace.loadDemo(host: "example.com", destination: IPv4Address("203.0.113.80")!, hops: traceHops)
             model.tools.dns.loadDemo(records: dnsRecords)
             model.tools.whois.loadDemo(answers: whoisAnswers)
-            model.tools.loadDemo(destination: "example.com",
-                                 tab: ["netping": .ping, "trace": .traceroute, "dns": .dns][scene] ?? .whois)
+            model.tools.loadDemo(destination: "example.com")
         case "summary":
             model.selectedHostID = nil
         case "moved", "history":

@@ -10,6 +10,15 @@ enum NetworkTool: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
+    var systemImage: String {
+        switch self {
+        case .ping: "waveform.path.ecg"
+        case .traceroute: "point.topleft.down.to.point.bottomright.curvepath"
+        case .dns: "list.bullet.rectangle"
+        case .whois: "person.text.rectangle"
+        }
+    }
+
     var title: String {
         switch self {
         case .ping: "Ping"
@@ -24,11 +33,10 @@ enum NetworkTool: String, CaseIterable, Identifiable {
 @MainActor
 @Observable
 final class NetworkToolsModel {
-    enum Status { case idle, waiting, running, done }
+    enum Status { case idle, waiting, running, done, stopped }
 
     var destination = ""
     var enabled: Set<NetworkTool> = Set(NetworkTool.allCases)
-    var selectedTab: NetworkTool?
 
     let ping: PingSession = {
         let session = PingSession()
@@ -39,8 +47,8 @@ final class NetworkToolsModel {
     let dns = DNSLookupModel()
     let whois = WhoisModel()
 
-    /// The tools of the last run, in order: one tab each.
-    private(set) var tabs: [NetworkTool] = []
+    /// The tools of the last run, in order.
+    private(set) var tools: [NetworkTool] = []
     private(set) var isRunning = false
     private var statuses: [NetworkTool: Status] = [:]
     private var task: Task<Void, Never>?
@@ -52,6 +60,11 @@ final class NetworkToolsModel {
 
     func status(of tool: NetworkTool) -> Status { statuses[tool] ?? .idle }
 
+    /// One results panel per tool that has started, in run order.
+    var panels: [NetworkTool] {
+        tools.filter { [.running, .done, .stopped].contains(status(of: $0)) }
+    }
+
     func run() {
         let target = destination.trimmingCharacters(in: .whitespaces)
         guard canRun else { return }
@@ -61,9 +74,10 @@ final class NetworkToolsModel {
         trace.clear()
         dns.clear()
         whois.clear()
-        tabs = tools
+        self.tools = tools
         statuses = Dictionary(uniqueKeysWithValues: tools.map { ($0, .waiting) })
-        if selectedTab.map(tools.contains) != true { selectedTab = tools.first }
+        // The first panel shows up right away instead of after the task starts.
+        if let first = tools.first { statuses[first] = .running }
         isRunning = true
         runID += 1
         let runID = runID
@@ -88,19 +102,25 @@ final class NetworkToolsModel {
         task?.cancel()
         runID += 1
         isRunning = false
-        // What already finished keeps its ✓; the rest go back to idle.
-        statuses = statuses.filter { $0.value == .done }
+        // Finished tools keep their ✓ and the one cut short keeps its partial results; the
+        // ones that never started disappear.
+        for (tool, status) in statuses {
+            switch status {
+            case .running: statuses[tool] = .stopped
+            case .waiting: statuses[tool] = nil
+            default: break
+            }
+        }
     }
 }
 
 #if DEBUG
 extension NetworkToolsModel {
     /// Finished results of every tool, for screenshots.
-    func loadDemo(destination: String, tab: NetworkTool) {
+    func loadDemo(destination: String) {
         self.destination = destination
-        tabs = NetworkTool.allCases
-        statuses = Dictionary(uniqueKeysWithValues: tabs.map { ($0, .done) })
-        selectedTab = tab
+        tools = NetworkTool.allCases
+        statuses = Dictionary(uniqueKeysWithValues: tools.map { ($0, .done) })
     }
 }
 #endif
@@ -167,28 +187,22 @@ struct NetworkToolsView: View {
             }
             .disabled(model.isRunning)
 
-            if model.tabs.isEmpty {
+            if model.panels.isEmpty {
                 ContentUnavailableView("No Results Yet", systemImage: "network",
                                        description: Text("Type a domain or IP address, check the tools to run and press Run."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                Picker("Results", selection: $model.selectedTab) {
-                    ForEach(model.tabs) { Text(tabTitle($0)).tag(Optional($0)) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .frame(maxWidth: .infinity)
-                Group {
-                    switch model.selectedTab {
-                    case .ping: PingResultsView(session: model.ping, statColumns: 4)
-                    case .traceroute: TraceResultsView(session: model.trace)
-                    case .dns: DNSResultsView(model: model.dns)
-                    case .whois: WhoisResultsView(model: model.whois)
-                    case nil: EmptyView()
+                // Panels appear as their tools start: two per row, as many rows as needed.
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 2),
+                              spacing: 12) {
+                        ForEach(model.panels) { tool in
+                            ToolPanel(tool: tool, status: model.status(of: tool)) {
+                                results(for: tool)
+                            }
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
         .padding()
@@ -206,12 +220,54 @@ struct NetworkToolsView: View {
         .fixedSize()
     }
 
-    /// "Traceroute", "DNS Lookup …" while it runs, "Whois ✓" when done.
-    private func tabTitle(_ tool: NetworkTool) -> String {
-        switch model.status(of: tool) {
-        case .idle, .waiting: tool.title
-        case .running: tool.title + " …"
-        case .done: tool.title + " ✓"
+    @ViewBuilder
+    private func results(for tool: NetworkTool) -> some View {
+        switch tool {
+        case .ping: PingResultsView(session: model.ping, statColumns: 4)
+        case .traceroute: TraceResultsView(session: model.trace)
+        case .dns: DNSResultsView(model: model.dns)
+        case .whois: WhoisResultsView(model: model.whois)
         }
+    }
+}
+
+/// One tool's results: a header with its state over a fixed-height body (long output scrolls
+/// inside the panel).
+private struct ToolPanel<Content: View>: View {
+    let tool: NetworkTool
+    let status: NetworkToolsModel.Status
+    @ViewBuilder let content: Content
+
+    static var height: CGFloat { 420 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Label(tool.title, systemImage: tool.systemImage)
+                    .font(.headline)
+                Spacer()
+                switch status {
+                case .running:
+                    ProgressView()
+                        .controlSize(.small)
+                case .done:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .help("Done")
+                case .stopped:
+                    Text("Stopped")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                case .idle, .waiting:
+                    EmptyView()
+                }
+            }
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .padding(12)
+        .frame(height: Self.height)
+        .background(.background.secondary, in: .rect(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(.separator))
     }
 }

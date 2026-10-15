@@ -61,16 +61,14 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 ![Open ports on a NAS, with service banners, typical uses and clickable http/https links](docs/screenshots/ports.png)
 
 ### Network tools
-The **Network Tools** section takes a destination, check the tools to run and press **Run**. They run one after the other, each with its results in its own tab. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
+The **Network Tools** section takes a destination, check the tools to run and press **Run**. They run one after the other, and each one's results appear in a panel as it starts: two panels per row, scrolling down as needed. They are meant for destinations outside your network: inside the LAN a traceroute is a single hop and whois knows nothing about private addresses.
 
 - **Ping:** 3 to 50 echo requests, one per second, with the same statistics, chart and log as the inspector's Ping tab.
 - **Traceroute:** the route to any name or address, using the same unprivileged ICMP socket as ping (no root, no helper). Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a maximum of 15, 30 or 64 hops.
 - **DNS Lookup:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
 - **Whois:** domains and public IP addresses, starting at IANA and following referrals to the registry and the registrar.
 
-![Network Tools: traceroute to example.com, each hop with its name, address and three round-trip times](docs/screenshots/trace.png)
-
-![The DNS Lookup tab: A, AAAA, MX, NS, TXT and SOA records of example.com](docs/screenshots/dns.png)
+![Network Tools: ping, traceroute, DNS and whois results for example.com in four panels](docs/screenshots/tools.png)
 
 ### Wi-Fi analyzer
 The **Wi-Fi Analyzer** section scans the nearby Wi-Fi networks every few seconds while it's shown. For each access point (BSSID): SSID, channel, channel width, band, security, vendor, supported 802.11 modes, a signal meter, current/average/max/min signal, noise and when it was last seen, plus a sparkline of its signal. The chart above the table has two tabs: **Signal over Time** plots the checked networks, and **Channels** draws each checked network as an arch over the channels it occupies (20–160 MHz, bonded blocks centered where they really are), as tall as its signal, so crowded channels stand out. Networks missing from three scans in a row fade out (a single scan never catches every network). macOS limits how often apps can scan, so fresh results arrive about every 15–20 seconds whatever the interval. Filter by band (2.4, 5 or 6 GHz).
@@ -126,7 +124,7 @@ Select **Network Tools** in the sidebar (⌘4).
 
 1. Type a domain or IP address in **Destination**.
 2. Check **Ping** (pick how many), **Traceroute** (pick the maximum hops), **DNS Lookup** (pick a record type, or **All**) and/or **Whois**.
-3. Press **Run**, Return or ⌘↩. The tools run in that order; each tab shows **…** while its tool runs and **✓** when it's done. **Stop** cancels the rest.
+3. Press **Run**, Return or ⌘↩. The tools run in that order; each panel shows a spinner while its tool runs and **✓** when it's done. **Stop** cancels the rest; a tool cut short keeps its partial results, marked **Stopped**.
 
 The section keeps the last results until you run it again, even while you use the others.
 

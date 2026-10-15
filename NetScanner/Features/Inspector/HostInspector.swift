@@ -13,6 +13,7 @@ enum InspectorTab: String, CaseIterable, Identifiable {
     case info = "Info"
     case ping = "Ping"
     case ports = "Ports"
+    case history = "History"
 
     var id: Self { self }
 }
@@ -34,6 +35,7 @@ struct HostInspector: View {
                 case .info: HostDetails(host: host).inspectorPanelFrame()
                 case .ping: PingPanel(session: app.ping).inspectorPanelFrame()
                 case .ports: PortScanPanel(model: app.ports).inspectorPanelFrame()
+                case .history: HostHistoryPanel(host: host).inspectorPanelFrame()
                 }
             }
             .padding()
@@ -209,7 +211,6 @@ struct HostDetails: View {
                 row("Vendor", host.vendor)
                 row("First Seen", host.firstSeen?.formatted(date: .abbreviated, time: .shortened))
                 row("Last Seen", host.lastSeen?.formatted(date: .abbreviated, time: .shortened))
-                row("IP History", ipHistory)
                 row("Latency", host.latency.map { $0.formatted(.number.precision(.fractionLength(1))) + " ms" })
                 row("Source", host.source.rawValue)
                 row("Interface", host.interface)
@@ -222,17 +223,6 @@ struct HostDetails: View {
             .font(.callout)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    /// One line per address the device has used, most recent first, once it has used more than one.
-    private var ipHistory: String? {
-        guard host.addressHistory.count > 1 else { return nil }
-        return host.addressHistory.map { sighting in
-            let from = sighting.firstSeen.formatted(date: .abbreviated, time: .omitted)
-            let to = sighting.lastSeen.formatted(date: .abbreviated, time: .omitted)
-            return "\(sighting.address)  \(from == to ? from : "\(from) – \(to)")"
-        }
-        .joined(separator: "\n")
     }
 
     @ViewBuilder

@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|new|moved|summary`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|whois|new|moved|history|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
@@ -37,9 +37,9 @@ enum DemoData {
                                  tab: scene == "trace" ? .traceroute : scene == "dns" ? .dns : .whois)
         case "summary":
             model.selectedHostID = nil
-        case "moved":
+        case "moved", "history":
             model.selectedHostID = HostID(interface: "en0", address: IPv4Address("192.168.1.12")!)
-            model.inspectorTab = .info
+            model.inspectorTab = scene == "history" ? .history : .info
         case "new":
             model.selectedHostID = nil
             model.showInspector = false

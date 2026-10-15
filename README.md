@@ -38,7 +38,7 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 - **Filter** the table as you type (⌘F) by IP, MAC, vendor, model, type, any name, comment or service.
 - **Choose your columns:** right-click the header to show or hide them; visibility, order and widths are remembered.
 - **Device history:** every device is remembered across scans and launches (by MAC, or by IP when there's none): when it was **first** and **last seen**, and every IP address it has used. Sort by the **First Seen** column to spot devices that just joined your network.
-- **IP changes:** when a device comes back with a different address than in the previous scan, its IP shows in orange with a ⇄ badge; hover it (or look at the inspector) for the previous one.
+- **IP changes:** when a device comes back with a different address than in the previous scan, its IP shows in orange with a ⇄ badge; hover it, or open the inspector's **History** tab, for the previous one.
 - **Wake-on-LAN** from the context menu of any host with a known MAC.
 - The **default gateway** is tagged in the table, and the scan summary lists it together with the **DNS servers** in use.
 - Sortable table, **CSV export**, and copy actions for IP, IPv6, MAC and hostname.
@@ -98,11 +98,12 @@ The first scan triggers macOS's **Local Network** permission prompt. Allow it, o
 ### The inspector (right panel)
 Toggle it with the sidebar button in the toolbar. With **no host selected**, it shows a scan summary: hosts found per interface or saved scan, the total, the default gateway and the DNS servers.
 
-With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and three tabs:
+With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and four tabs:
 
 - **Info:** everything detected about the host: Bonjour, NetBIOS and DNS names, all IPv6 addresses, MAC, vendor, latency, discovery source and interface.
 - **Ping:** pick a count and interval, then **Start Ping**.
 - **Ports:** choose **TCP** or **UDP**. For TCP pick a port list (✏️ edits the lists) and a timeout, then **Scan Ports**. Hover a row to read the full banner and what the port is typically used for. Click an **http ↗ / https ↗** link to open the web interface, or double-click the row.
+- **History:** every IP address the device has used (followed by its MAC), with when each was first and last seen. The current one is tagged **Current**, and the one it just left **Previous**.
 
 ### Network tools
 Click 🔧 in the toolbar (the window is also listed in the **Window** menu).

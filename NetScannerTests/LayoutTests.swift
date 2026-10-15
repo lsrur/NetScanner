@@ -25,6 +25,9 @@ struct LayoutTests {
         host.ipv6Global = ["2001:db8:1:2:aaaa:bbbb:cccc:1", "2001:db8:1:2:aaaa:bbbb:cccc:2"]
         host.bonjourName = "Android_0123456789abcdef0123456789abcdef"
         #expect(minimumWidth(HostDetails(host: host).inspectorPanelFrame()) <= inspectorPanelWidth)
+        host.mac = MACAddress("00:11:22:33:44:55")
+        host.addressHistory = [AddressSighting(address: "192.168.255.254", firstSeen: .distantPast, lastSeen: .now)]
+        #expect(minimumWidth(HostHistoryPanel(host: host).inspectorPanelFrame()) <= inspectorPanelWidth)
         // The network tools live in their own windows.
         #expect(minimumWidth(NetworkToolsView(model: NetworkToolsModel())) <= toolWindowMinSize.width)
         let udp = PortScanModel(lists: PortListStore(defaults: UserDefaults(suiteName: "layout-udp")!))

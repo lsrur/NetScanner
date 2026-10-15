@@ -132,6 +132,18 @@ Debug builds also accept two environment variables, handy for screenshots: `NETS
 NETSCANNER_AUTOSCAN=1 build/Build/Products/Debug/NetScanner.app/Contents/MacOS/NetScanner
 ```
 
+### Releasing
+
+Bump `MARKETING_VERSION` in `project.yml`, commit and push, then:
+
+```sh
+scripts/release.sh                       # tests, universal Release build, dist/NetScanner-<version>.dmg
+scripts/release.sh --publish             # same, then tags v<version> and creates the GitHub release
+scripts/release.sh --publish --notes notes.md   # with your own release notes on top
+```
+
+`--publish` refuses to run unless the tree is clean, on `main`, in sync with `origin/main`, and the version hasn't been released yet. Builds are ad-hoc signed (no Developer ID), so the release notes explain how to get past Gatekeeper.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

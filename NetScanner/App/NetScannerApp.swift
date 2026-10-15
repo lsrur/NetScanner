@@ -8,6 +8,8 @@ final class AppModel {
     let ping = PingSession()
     let portLists = PortListStore()
     let ports: PortScanModel
+    let trace = TraceSession()
+    let lookup = LookupModel()
     let publicNetwork = PublicNetworkModel()
     var showInspector = true
     /// The host table's filter, typed in the toolbar.
@@ -23,6 +25,8 @@ final class AppModel {
             let target = selectedHostID?.address.description ?? ""
             ping.retarget(target)
             ports.retarget(target)
+            trace.retarget(target)
+            lookup.retarget(target)
         }
     }
 

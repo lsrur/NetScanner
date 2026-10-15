@@ -9,14 +9,27 @@ struct PortScanPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            Picker("Protocol", selection: $model.scanProtocol) {
+                ForEach(PortScanModel.ScanProtocol.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
             // One control per line: side by side they need more than the inspector width.
-            HStack {
-                Picker("Ports", selection: $model.selectedListID) {
-                    ForEach(model.lists.lists) { Text($0.displayName).tag(Optional($0.id)) }
+            if model.scanProtocol == .tcp {
+                HStack {
+                    Picker("Ports", selection: $model.selectedListID) {
+                        ForEach(model.lists.lists) { Text($0.displayName).tag(Optional($0.id)) }
+                    }
+                    Button("Edit Lists…", systemImage: "pencil") { isEditingLists = true }
+                        .labelStyle(.iconOnly)
+                        .help("Edit port lists")
                 }
-                Button("Edit Lists…", systemImage: "pencil") { isEditingLists = true }
-                    .labelStyle(.iconOnly)
-                    .help("Edit port lists")
+            } else {
+                Text("Common UDP services (\(UDPProbe.services.count)): " + UDPProbe.services.map(\.name).joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Picker("Timeout", selection: $model.timeout) {
                 ForEach(PortScanModel.timeouts, id: \.self) { Text("\(Int($0 * 1000)) ms").tag($0) }
@@ -75,9 +88,9 @@ struct PortScanPanel: View {
                 }
             }
             .width(min: 70, ideal: 100)
-            TableColumn("Typical Use") { result in
-                Text(verbatim: PortDescriptions.tooltip(for: result.port))
-                    .foregroundStyle(.secondary)
+            TableColumn("Details") { result in
+                Text(verbatim: result.banner ?? PortDescriptions.tooltip(for: result.port))
+                    .foregroundStyle(result.banner == nil ? .secondary : .primary)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .cellToolTip(Self.tooltip(for: result))
@@ -113,9 +126,10 @@ struct PortScanPanel: View {
     }
 
     private static func tooltip(for result: PortScanModel.Result) -> String {
-        let description = "\(result.port) — \(PortDescriptions.tooltip(for: result.port))"
-        guard let url = result.webURL else { return description }
-        return description + "\n" + url.absoluteString
+        var lines = ["\(result.port) — \(PortDescriptions.tooltip(for: result.port))"]
+        if let banner = result.banner { lines.append(banner) }
+        if let url = result.webURL { lines.append(url.absoluteString) }
+        return lines.joined(separator: "\n")
     }
 
     private func copy(_ string: String) {

@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports`.
+/// Fictional network for README screenshots: `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|summary`.
 /// Addresses use private and documentation ranges (192.168.1.0/24, 2001:db8::/32,
 /// 203.0.113.0/24); MAC addresses and names are made up.
 @MainActor
@@ -28,6 +28,14 @@ enum DemoData {
             model.selectedHostID = HostID(interface: "en0", address: nas)
             model.inspectorTab = .ports
             model.ports.loadDemo(address: nas, listName: "Home/IoT", results: nasPorts, elapsed: .milliseconds(2340))
+        case "trace":
+            model.selectedHostID = HostID(interface: "en0", address: nas)
+            model.inspectorTab = .trace
+            model.trace.loadDemo(host: "example.com", destination: IPv4Address("203.0.113.80")!, hops: traceHops)
+        case "dns":
+            model.selectedHostID = HostID(interface: "en0", address: nas)
+            model.inspectorTab = .lookup
+            model.lookup.loadDemo(query: "example.com", records: dnsRecords)
         case "summary":
             model.selectedHostID = nil
         default:
@@ -38,6 +46,26 @@ enum DemoData {
         NSApp.windows.first { $0.isVisible && $0.frame.width > 500 }?
             .setFrame(NSRect(x: 80, y: 80, width: 1480, height: 860), display: true)
     }
+
+    private static let traceHops: [TraceSession.Hop] = [
+        .init(ttl: 1, address: IPv4Address("192.168.1.1"), rtts: [1.8, 1.6, 1.7], hostname: "router.lan"),
+        .init(ttl: 2, address: IPv4Address("100.64.0.1"), rtts: [8.9, 9.4, 8.7]),
+        .init(ttl: 3, address: IPv4Address("198.51.100.17"), rtts: [11.2, 10.8, 12.5], hostname: "core1.isp.example.net"),
+        .init(ttl: 4, address: nil, rtts: [nil, nil, nil]),
+        .init(ttl: 5, address: IPv4Address("198.51.100.94"), rtts: [24.1, 23.7, nil], hostname: "edge2.isp.example.net"),
+        .init(ttl: 6, address: IPv4Address("203.0.113.1"), rtts: [31.6, 30.9, 31.2], hostname: "ix.transit.example"),
+        .init(ttl: 7, address: IPv4Address("203.0.113.80"), rtts: [32.4, 31.8, 32.0], hostname: "www.example.com", isDestination: true),
+    ]
+
+    private static let dnsRecords: [DNSRecord] = [
+        DNSRecord(type: "A", value: "203.0.113.80", ttl: 300),
+        DNSRecord(type: "AAAA", value: "2001:db8:80::1", ttl: 300),
+        DNSRecord(type: "MX", value: "10 mail.example.com.", ttl: 3600),
+        DNSRecord(type: "NS", value: "ns1.example.net.", ttl: 86400),
+        DNSRecord(type: "NS", value: "ns2.example.net.", ttl: 86400),
+        DNSRecord(type: "TXT", value: "\"v=spf1 mx -all\"", ttl: 3600),
+        DNSRecord(type: "SOA", value: "ns1.example.net. hostmaster.example.com. serial 2026101501 refresh 7200 retry 3600 expire 1209600 minimum 300", ttl: 3600),
+    ]
 
     private static let nas = IPv4Address("192.168.1.20")!
     private static let tv = IPv4Address("192.168.1.41")!
@@ -114,13 +142,13 @@ enum DemoData {
     ]
 
     private static let nasPorts: [PortScanModel.Result] = [
-        .init(port: 22, state: .open),
-        .init(port: 80, state: .open, webURL: URL(string: "http://192.168.1.20")),
+        .init(port: 22, state: .open, banner: "OpenSSH 8.2"),
+        .init(port: 80, state: .open, webURL: URL(string: "http://192.168.1.20"), banner: "nginx"),
         .init(port: 139, state: .open),
         .init(port: 443, state: .open, webURL: URL(string: "https://192.168.1.20")),
         .init(port: 445, state: .open),
         .init(port: 548, state: .open),
-        .init(port: 5000, state: .open, webURL: URL(string: "http://192.168.1.20:5000")),
+        .init(port: 5000, state: .open, webURL: URL(string: "http://192.168.1.20:5000"), banner: "nginx"),
         .init(port: 5001, state: .open, webURL: URL(string: "https://192.168.1.20:5001")),
         .init(port: 32400, state: .open, webURL: URL(string: "http://192.168.1.20:32400")),
     ]

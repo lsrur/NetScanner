@@ -12,7 +12,9 @@ extension View {
 enum InspectorTab: String, CaseIterable, Identifiable {
     case info = "Info"
     case ping = "Ping"
+    case trace = "Trace"
     case ports = "Ports"
+    case lookup = "DNS"
 
     var id: Self { self }
 }
@@ -33,7 +35,9 @@ struct HostInspector: View {
                 switch app.inspectorTab {
                 case .info: HostDetails(host: host).inspectorPanelFrame()
                 case .ping: PingPanel(session: app.ping).inspectorPanelFrame()
+                case .trace: TracePanel(session: app.trace).inspectorPanelFrame()
                 case .ports: PortScanPanel(model: app.ports).inspectorPanelFrame()
+                case .lookup: LookupPanel(model: app.lookup).inspectorPanelFrame()
                 }
             }
             .padding()

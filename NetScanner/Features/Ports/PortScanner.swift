@@ -119,8 +119,13 @@ final class PortScanModel {
         let state: PortState
         /// Set when the port answered an HTTP request (over TLS for https).
         var webURL: URL?
+        /// Software and version the service announced ("OpenSSH 9.6p1", "nginx/1.25.3",
+        /// an SNMP sysDescr…).
+        var banner: String?
+        /// Set for UDP results, whose names come from the probe rather than /etc/services.
+        var udpName: String?
         var id: UInt16 { port }
-        var service: String { webURL?.scheme ?? ServiceNames.name(for: port) ?? "" }
+        var service: String { webURL?.scheme ?? udpName ?? ServiceNames.name(for: port) ?? "" }
     }
 
     static let timeouts: [TimeInterval] = [0.25, 0.5, 1, 2]
@@ -160,6 +165,14 @@ final class PortScanModel {
 
     var progress: Double { totalCount == 0 ? 0 : Double(scannedCount) / Double(totalCount) }
 
+    enum ScanProtocol: String, CaseIterable, Identifiable {
+        case tcp = "TCP"
+        case udp = "UDP"
+        var id: Self { self }
+    }
+
+    var scanProtocol = ScanProtocol.tcp
+
     func ports() -> [UInt16]? {
         selectedList?.parsedPorts
     }
@@ -180,15 +193,23 @@ final class PortScanModel {
     func start() {
         let host = host.trimmingCharacters(in: .whitespaces)
         guard !host.isEmpty else { return }
+        if scanProtocol == .udp {
+            begin(total: UDPProbe.services.count) { await self.runUDP(host: host) }
+            return
+        }
         guard let ports = ports() else {
             errorMessage = selectedList.map { "The list “\($0.displayName)” has invalid ports." }
                 ?? "No port lists. Create one with the edit button."
             return
         }
+        begin(total: ports.count) { await self.run(host: host, ports: ports) }
+    }
+
+    private func begin(total: Int, _ work: @escaping @MainActor () async -> Void) {
         task?.cancel()
         results = []
         scannedCount = 0
-        totalCount = ports.count
+        totalCount = total
         resolvedAddress = nil
         elapsed = nil
         errorMessage = nil
@@ -196,9 +217,48 @@ final class PortScanModel {
         runID += 1
         let runID = runID
         task = Task {
-            await run(host: host, ports: ports)
+            await work()
             if self.runID == runID { isRunning = false }
         }
+    }
+
+    private func resolve(_ host: String) async -> IPv4Address? {
+        do {
+            let address = try await HostResolver.resolveIPv4(host)
+            guard !Task.isCancelled else { return nil }
+            resolvedAddress = address
+            return address
+        } catch {
+            if !Task.isCancelled { errorMessage = error.localizedDescription }
+            return nil
+        }
+    }
+
+    /// One real request per common UDP service; only answers (open) and refusals (closed) are kept.
+    private func runUDP(host: String) async {
+        guard let address = await resolve(host) else { return }
+        let timeout = max(timeout, 1)
+        let started = ContinuousClock.now
+        await withLimitedConcurrency(UDPProbe.services.map(\.port), limit: 16) { port in
+            let service = UDPProbe.services.first { $0.port == port }!
+            switch await UDPProbe.probe(address, service: service, timeout: timeout) {
+            case .reply(let bytes):
+                return Result(port: port, state: .open, banner: service.describe(bytes), udpName: service.name)
+            case .refused:
+                return Result(port: port, state: .closed, udpName: service.name)
+            case .noResponse:
+                return Result(port: port, state: .filtered, udpName: service.name)
+            }
+        } onResult: { result in
+            guard !Task.isCancelled else { return }
+            scannedCount += 1
+            if result.state != .filtered {
+                results.append(result)
+            }
+        }
+        guard !Task.isCancelled else { return }
+        results.sort { $0.port < $1.port }
+        elapsed = ContinuousClock.now - started
     }
 
     func stop() {
@@ -222,10 +282,10 @@ final class PortScanModel {
         let started = ContinuousClock.now
         await withLimitedConcurrency(ports, limit: 256) { port in
             let state = await TCPProbe.probe(address, port: port, timeout: timeout)
-            guard state == .open, let scheme = await WebProbe.detect(address, port: port) else {
-                return Result(port: port, state: state)
-            }
-            return Result(port: port, state: state, webURL: WebProbe.url(scheme, address: address, port: port))
+            guard state == .open else { return Result(port: port, state: state) }
+            let webURL = await WebProbe.detect(address, port: port).flatMap { WebProbe.url($0, address: address, port: port) }
+            let banner = await ServiceBanner.grab(address, port: port, webURL: webURL)
+            return Result(port: port, state: state, webURL: webURL, banner: banner)
         } onResult: { result in
             // In-flight probes still report after a cancel; they belong to the old run.
             guard !Task.isCancelled else { return }

@@ -25,6 +25,11 @@ struct LayoutTests {
         host.ipv6Global = ["2001:db8:1:2:aaaa:bbbb:cccc:1", "2001:db8:1:2:aaaa:bbbb:cccc:2"]
         host.bonjourName = "Android_0123456789abcdef0123456789abcdef"
         #expect(minimumWidth(HostDetails(host: host).inspectorPanelFrame()) <= inspectorPanelWidth)
+        #expect(minimumWidth(TracePanel(session: TraceSession()).inspectorPanelFrame()) <= inspectorPanelWidth)
+        #expect(minimumWidth(LookupPanel(model: LookupModel()).inspectorPanelFrame()) <= inspectorPanelWidth)
+        let udp = PortScanModel(lists: PortListStore(defaults: UserDefaults(suiteName: "layout-udp")!))
+        udp.scanProtocol = .udp
+        #expect(minimumWidth(PortScanPanel(model: udp).inspectorPanelFrame()) <= inspectorPanelWidth)
         // A long user-defined list name must not widen the panel either.
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)

@@ -50,10 +50,23 @@ It runs entirely inside the macOS App Sandbox and needs no administrator privile
 
 ### Port scanning
 - Editable **port lists**. It ships with *Top 100* (nmap's most common ports), *Home/IoT* (NAS, media servers, cameras, home automation, TVs, printers, Apple devices), *1–1024* and *1–65535*, and you can add your own.
-- For each open port: the service name, a plain-English **typical use** description and an open/closed indicator.
+- For each open port: the service name, an open/closed indicator and a **Details** column with the **banner** the service announces (`OpenSSH 9.6p1`, the web server's `Server` header, FTP/SMTP/POP3/IMAP greetings, MySQL version) or, when it says nothing, a plain-English description of its typical use.
+- **UDP scan** of common services: DNS, TFTP, NTP, NetBIOS, SNMP (reads `sysDescr` with community *public*), SSDP/UPnP, SIP, mDNS, CoAP and Ubiquiti discovery. Each port gets a real request of its protocol, so *open* means it answered; *closed* means an ICMP port-unreachable came back.
 - **Automatic web detection.** Open ports that answer HTTP or HTTPS (including self-signed certificates) become **clickable links** that open in your browser, even on non-standard ports such as 8080, 8123 or 3000.
 
-![Open ports on a NAS, with typical uses and clickable http/https links](docs/screenshots/ports.png)
+![Open ports on a NAS, with service banners, typical uses and clickable http/https links](docs/screenshots/ports.png)
+
+### Traceroute
+- The route to the selected host (or any name or address), using the same unprivileged ICMP socket as ping: no root, no helper.
+- Three probes per hop with their round-trip times, hop names from reverse DNS and Bonjour, and a configurable maximum of 15, 30 or 64 hops.
+
+![Traceroute to example.com: each hop with its name, address and three round-trip times](docs/screenshots/trace.png)
+
+### DNS lookup and whois
+- **DNS:** A, AAAA, CNAME, MX, NS, TXT, SOA, SRV and PTR records (or all the common ones at once) through the system resolver, with TTLs. An IPv4 address is looked up as PTR.
+- **Whois** for domains and IP addresses, starting at IANA and following referrals to the registry and the registrar.
+
+![DNS records of example.com: A, AAAA, MX, NS, TXT and SOA](docs/screenshots/dns.png)
 
 ### Public network info
 A status bar shows your **ISP**, **country**, and **public IPv4 and IPv6** addresses. It refreshes automatically when your network changes. While a scan runs, it shows the scan progress instead.
@@ -84,19 +97,22 @@ The first scan triggers macOS's **Local Network** permission prompt. Allow it, o
 ### The inspector (right panel)
 Toggle it with the sidebar button in the toolbar. With **no host selected**, it shows a scan summary: hosts found per interface or saved scan, the total, the default gateway and the DNS servers.
 
-With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and three tabs:
+With a host selected, the top shows its IP plus editable **Name** and **Comment** fields (saved as you type), and five tabs:
 
 - **Info:** everything detected about the host: Bonjour, NetBIOS and DNS names, all IPv6 addresses, MAC, vendor, latency, discovery source and interface.
 - **Ping:** pick a count and interval, then **Start Ping**.
-- **Ports:** pick a port list (✏️ edits the lists) and a timeout, then **Scan Ports**. Hover a row to read what the port is typically used for. Click an **http ↗ / https ↗** link to open the web interface, or double-click the row.
+- **Trace:** pick the maximum number of hops, then **Start Traceroute**.
+- **Ports:** choose **TCP** or **UDP**. For TCP pick a port list (✏️ edits the lists) and a timeout, then **Scan Ports**. Hover a row to read the full banner and what the port is typically used for. Click an **http ↗ / https ↗** link to open the web interface, or double-click the row.
+- **DNS:** type a host, address or domain (it starts with the selected host), choose **DNS** and a record type, or **Whois**, then press **Look Up** (or ⌘↩).
 
 ### Status bar
 Shows ISP, country flag and public IPs. Click ↻ to refresh them manually.
 
 ## Privacy
 
-- Scanning, pinging and port scanning stay on your local network.
-- The **only** external request is to [ipinfo.io](https://ipinfo.io), to display your public IP, ISP and country in the status bar.
+- Scanning, pinging and port scanning stay on your local network, unless you point a tool at an outside address yourself.
+- The only automatic external request is to [ipinfo.io](https://ipinfo.io), to display your public IP, ISP and country in the status bar.
+- DNS lookups go to the DNS servers your Mac already uses; whois queries go to whois.iana.org and the registry/registrar servers it refers to, only when you press **Whois**.
 - Saved data (names, comments, saved ranges and port lists) is stored locally in the app's sandbox container.
 
 ## How it works
@@ -105,6 +121,9 @@ Shows ISP, country flag and public IPs. Click ↻ to refresh them manually.
 - **MAC and IPv6 neighbors.** Read from the kernel's ARP and NDP caches through the routing `sysctl`. Inside the sandbox (with Local Network access) this returns real MACs, while spawned `arp`/`ndp` tools only see redacted ones. An ICMPv6 ping to `ff02::1` fills the IPv6 neighbor cache first.
 - **Names.** Bonjour (multicast reverse PTR lookup), NetBIOS node status (UDP 137) and unicast reverse DNS are queried in parallel; the first answer wins.
 - **Identification.** A DNS-SD meta-query (`_services._dns-sd._udp`) finds every advertised service type; instances are resolved to IPs and their TXT records read. An SSDP `M-SEARCH` collects UPnP description URLs; when a device publishes several, the most informative one wins. The default gateway comes from the routing table. Rules then rank the evidence from strongest (model identifiers, services) to weakest (vendor, randomized MAC).
+- **Traceroute.** Echo requests with an increasing `IP_TTL` on the unprivileged ICMP socket; the kernel delivers the routers' *Time Exceeded* errors, which quote our request, so each one is matched to its probe.
+- **Banners.** Web ports reuse the `HEAD` response's `Server` header; other open TCP ports are read for the first bytes the server sends on its own.
+- **UDP.** A connected UDP socket, so an ICMP port-unreachable surfaces as `ECONNREFUSED`; the request is retried once because UDP may drop it.
 - **Web detection.** A `HEAD /` request is sent over TLS first, then plain TCP, so HTTPS ports aren't mistaken for HTTP.
 
 ## Requirements
@@ -145,7 +164,7 @@ scripts/update-services.sh   # service names from /etc/services
 ```
 
 Debug builds also accept two environment variables, handy for screenshots: `NETSCANNER_AUTOSCAN=1` scans all interfaces on launch, and `NETSCANNER_SELECT=<ip>` selects that host when the scan ends.
-The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
+The README screenshots come from `NETSCANNER_DEMO=hosts|ping|ports|trace|dns|summary`, which loads a fictional network (see `NetScanner/App/DemoData.swift`).
 
 ```sh
 NETSCANNER_AUTOSCAN=1 build/Build/Products/Debug/NetScanner.app/Contents/MacOS/NetScanner

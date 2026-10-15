@@ -212,6 +212,13 @@ enum LocalHTTP {
         return URLSession(configuration: configuration, delegate: TrustingDelegate(), delegateQueue: nil)
     }()
 
+    /// Response headers of a HEAD request, whatever the status.
+    static func headers(_ url: URL) async -> HTTPURLResponse? {
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        return (try? await session.data(for: request))?.1 as? HTTPURLResponse
+    }
+
     /// Body (capped) and response for a 2xx answer, nil otherwise.
     static func get(_ url: URL, maxBytes: Int = 256_000) async -> (Data, HTTPURLResponse)? {
         guard let (data, response) = try? await session.data(from: url),

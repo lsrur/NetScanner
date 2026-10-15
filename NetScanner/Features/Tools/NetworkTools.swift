@@ -105,8 +105,8 @@ extension NetworkToolsModel {
 }
 #endif
 
-/// Minimum size of the Network Tools window.
-let toolWindowMinSize = CGSize(width: 520, height: 440)
+/// Minimum size of the Network Tools section (the tool options fit on one line).
+let toolWindowMinSize = CGSize(width: 680, height: 440)
 
 struct NetworkToolsView: View {
     @Bindable var model: NetworkToolsModel
@@ -134,9 +134,9 @@ struct NetworkToolsView: View {
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!model.isRunning && !model.canRun)
             }
-            // Two columns: each tool's checkbox followed by its option.
-            Grid(alignment: .leading, horizontalSpacing: 6, verticalSpacing: 8) {
-                GridRow {
+            // One line: each tool's checkbox followed by its option.
+            HStack(spacing: 22) {
+                HStack(spacing: 6) {
                     toggle(.ping)
                     Picker("Count", selection: $ping.count) {
                         ForEach([3, 5, 10, 20, 50], id: \.self) { Text("\($0) pings").tag($0) }
@@ -144,8 +144,9 @@ struct NetworkToolsView: View {
                     .labelsHidden()
                     .fixedSize()
                     .help("Number of echo requests, one per second")
+                }
+                HStack(spacing: 6) {
                     toggle(.traceroute)
-                        .padding(.leading, 20)
                     Picker("Max hops", selection: $trace.maxHops) {
                         ForEach([15, 30, 64], id: \.self) { Text("\($0) hops").tag($0) }
                     }
@@ -153,7 +154,7 @@ struct NetworkToolsView: View {
                     .fixedSize()
                     .help("Maximum number of hops")
                 }
-                GridRow {
+                HStack(spacing: 6) {
                     toggle(.dns)
                     Picker("Record type", selection: $dns.recordType) {
                         ForEach(DNSLookup.RecordType.allCases) { Text($0.rawValue).tag($0) }
@@ -161,9 +162,8 @@ struct NetworkToolsView: View {
                     .labelsHidden()
                     .fixedSize()
                     .help("Record type. An IPv4 address is always looked up as PTR.")
-                    toggle(.whois)
-                        .padding(.leading, 20)
                 }
+                toggle(.whois)
             }
             .disabled(model.isRunning)
 
